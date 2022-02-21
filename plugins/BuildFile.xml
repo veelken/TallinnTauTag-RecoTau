@@ -1,5 +1,6 @@
 <use   name="CommonTools/Utils"/>
 <use   name="DataFormats/JetReco"/>
+<use   name="DataFormats/Math"/>
 <use   name="DataFormats/ParticleFlowCandidate"/>
 <use   name="DataFormats/TauReco"/>
 <use   name="FWCore/Framework"/>
