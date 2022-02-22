@@ -1,14 +1,17 @@
 #include "TallinnTauTag/RecoTau/plugins/TallinnTauProducer.h"
 
-#include "FWCore/ParameterSet/interface/ParameterSetDescription.h" // edm::ParameterSetDescription 
+#include "FWCore/ParameterSet/interface/ParameterSetDescription.h" // edm::ParameterSetDescription
 #include "FWCore/Utilities/interface/Exception.h"                  // edm::Exception
 
 #include "DataFormats/TauReco/interface/PFTau.h"                   // reco::PFTau
 #include "DataFormats/TauReco/interface/PFTauFwd.h"                // reco::PFTauCollection
+#include "DataFormats/TrackReco/interface/Track.h"                 // reco::Track
 #include "DataFormats/Math/interface/deltaR.h"                     // reco::deltaR()
+#include "DataFormats/Math/interface/deltaPhi.h"                   // reco::deltaPhi()
 
 #include <iostream>                                                // std::cout, std::endl
 #include <memory>                                                  // std::make_unique<>
+#include <algorithm>                                               // std::sort
 
 using namespace reco::tau;
 
@@ -48,7 +51,7 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
   }
 
   num_dnnInputs_ = jetInputs_.size() + pfCandInputs_.size()*maxNumPFCands_;
-  dnnInputs_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{1, num_dnnInputs_});
+  dnnInputs_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ 1, (long)num_dnnInputs_ });
   dnnInputs_->flat<float>().setZero();
 
   num_dnnOutputs_ = maxNumPFCands_;
@@ -56,7 +59,7 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
   dnnInputLayerName_ = dnn_->getGraph().node(0).name();
   dnnOutputLayerName_ = dnn_->getGraph().node(dnn_->getGraph().node_size() - 1).name();
   const auto& dnnInputLayer = dnn_->getGraph().node(0).attr().at("shape").shape();
-  if ( dnnInputLayer.dim(1).size() != num_dnnInputs_ )
+  if ( (size_t)dnnInputLayer.dim(1).size() != num_dnnInputs_ )
     throw cms::Exception("TallinnTauProducer")
       << "Size of DNN input layer = " << dnnInputLayer.dim(1).size() << " does not match number of DNN input variables = " << num_dnnInputs_ << " !!";
 
@@ -68,29 +71,35 @@ TallinnTauProducer::~TallinnTauProducer()
 {}
 
 double 
-TallinnTauProducer::compJetInput(const reco::PFJet& pfJet, const std::string& inputVariable) const
+TallinnTauProducer::compJetInput(const reco::PFJet& pfJet, const std::string& inputVariable, const reco::Track* leadTrack) const
 {
   double retVal = 0.;
-  std::map<std::string, StringObjectFunction<reco::PFJet>*>::const_iterator jetInputExtractor = jetInputExtractors_.find(inputVariable);
-  assert(jetInputExtractor != jetInputExtractors_.end());
-  retVal = (*jetInputExtractor->second)(pfJet);
+  if      ( inputVariable == "dR_leadTrack"   ) retVal = deltaR(pfJet.p4(), leadTrack->momentum());
+  else if ( inputVariable == "dEta_leadTrack" ) retVal = std::fabs(pfJet.eta() - leadTrack->eta());
+  else if ( inputVariable == "dPhi_leadTrack" ) retVal = deltaPhi(pfJet.phi(), leadTrack->phi());
+  else
+  {
+    auto jetInputExtractor = jetInputExtractors_.find(inputVariable);
+    assert(jetInputExtractor != jetInputExtractors_.end());
+    retVal = (*jetInputExtractor->second)(pfJet);
+  }
   return retVal;
 }
 
 //-------------------------------------------------------------------------------
-# CV: function getTrack copied from
-#       RecoTauTag/RecoTau/src/RecoTauQualityCuts.cc
+// CV: function getTrack copied from
+//       RecoTauTag/RecoTau/src/RecoTauQualityCuts.cc
 namespace 
 {
   const reco::Track* 
-  getTrack(const Candidate& pfCand) 
+  getTrack(const reco::PFCandidate& pfCand) 
   {
     // Get the KF track if it exists. Otherwise, see if PFCandidate has a GSF track.
-    if      ( pfCand->trackRef().isNonnull()    ) return pfCand->trackRef().get();
-    else if ( pfCand->gsfTrackRef().isNonnull() ) return pfCand->gsfTrackRef().get();
-    else                                          return nullptr;
+    if      ( pfCand.trackRef().isNonnull()    ) return pfCand.trackRef().get();
+    else if ( pfCand.gsfTrackRef().isNonnull() ) return pfCand.gsfTrackRef().get();
+    else                                         return nullptr;
   }
-}
+} // namespace
 //-------------------------------------------------------------------------------
 
 double 
@@ -110,9 +119,12 @@ TallinnTauProducer::compPFCandInput(const reco::PFCandidate& pfCand,
       else                               assert(0);
     }
   }
+  else if ( inputVariable == "dR_leadTrack"   ) retVal = deltaR(pfCand.p4(), leadTrack->momentum());
+  else if ( inputVariable == "dEta_leadTrack" ) retVal = std::fabs(pfCand.eta() - leadTrack->eta());
+  else if ( inputVariable == "dPhi_leadTrack" ) retVal = deltaPhi(pfCand.phi(), leadTrack->phi());
   else
   {
-    std::map<std::string, StringObjectFunction<reco::PFCandidate>*>::const_iterator pfCandInputExtractor = pfCandInputExtractors_.find(inputVariable);
+    auto pfCandInputExtractor = pfCandInputExtractors_.find(inputVariable);
     assert(pfCandInputExtractor != pfCandInputExtractors_.end());
     retVal = (*pfCandInputExtractor->second)(pfCand);
   }
@@ -125,6 +137,20 @@ namespace
   set_dnnInput(tensorflow::Tensor& dnnInputs, size_t idx, double value)
   {
     dnnInputs.matrix<float>()(0, idx) = value;
+  }
+
+  reco::PFCandidate
+  clonePFCand(const reco::PFCandidate& pfCand, double pfEnFrac)
+  {
+    reco::PFCandidate clonedPFCand(pfCand);
+    clonedPFCand.setP4(pfEnFrac*pfCand.p4());
+    return clonedPFCand;
+  }
+
+  bool
+  isHigherPt(const reco::PFCandidatePtr& pfCand1, const reco::PFCandidatePtr& pfCand2)
+  {
+    return pfCand1->pt() > pfCand2->pt();
   }
 }
 
@@ -144,24 +170,24 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
   edm::Handle<reco::PFCandidateCollection> pfCands;
   evt.getByToken(pfCandToken_, pfCands);
 
-  size_t numJets = jets->size();
-  for ( size_t idxJet = 0; idxJet < numJets; ++idxJet )
+  size_t numPFJets = pfJets->size();
+  for ( size_t idxPFJet = 0; idxPFJet < numPFJets; ++idxPFJet )
   {
-    reco::PFJetRef pfJetRef(pfJets, idxJet);
+    reco::PFJetRef pfJetRef(pfJets, idxPFJet);
 
     // CV: require that jet that seeds the tau reconstruction passes loose cuts on pT and eta
-    if ( !(jetRef->pt() > minJetPt_ && std::fabs(jetRef->eta()) < maxJetAbsEta_) ) continue;
-    std::vector<reco::PFCandidatePtr> jetConstituents = jetRef->getPFConstituents();
+    if ( !(pfJetRef->pt() > minJetPt_ && std::fabs(pfJetRef->eta()) < maxJetAbsEta_) ) continue;
+    std::vector<reco::PFCandidatePtr> pfJetConstituents = pfJetRef->getPFConstituents();
     if ( verbosity_ >= 1 )
     {
-      std::cout << "jet #" << jetRef->key() << ":" 
-                << " pT = " << jetRef->pt() << "," 
-                << " eta = " << jetRef->eta() << "," 
-                << " phi = " << jetRef->phi() 
-                << " (#constituents = " << jetConstituents.size() << ")" << std::endl;
+      std::cout << "jet #" << pfJetRef.key() << ":" 
+                << " pT = " << pfJetRef->pt() << "," 
+                << " eta = " << pfJetRef->eta() << "," 
+                << " phi = " << pfJetRef->phi() 
+                << " (#constituents = " << pfJetConstituents.size() << ")" << std::endl;
     }
 
-    reco::VertexRef primaryVertexRef = vertexAssociator_.associatedVertex(*jetRef);
+    reco::VertexRef primaryVertexRef = vertexAssociator_.associatedVertex(*pfJetRef);
     if ( !primaryVertexRef.get() ) continue;
     reco::Vertex::Point primaryVertexPos = primaryVertexRef->position();
     if ( verbosity_ >= 1 )
@@ -171,33 +197,36 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
                 << " y = " << primaryVertexPos.y() << ","
                 << " z = " << primaryVertexPos.z() << std::endl;
     }
-    reco::TrackBaseRef leadTrackRef = vertexAssociator_.getLeadTrack(*jetRef);
-    if ( !leadTrackRef.get() ) continue;
+    const reco::Track* leadTrack = vertexAssociator_.getLeadTrack(*pfJetRef);
+    if ( !leadTrack ) continue;
     if ( verbosity_ >= 1 )
     {
       std::cout << "lead. track:" 
-                << " pT = " << leadTrackRef->pt() << "," 
-                << " eta = " << leadTrackRef->eta() << "," 
-                << " phi = " << leadTrackRef->phi() << std::endl;
+                << " pT = " << leadTrack->pt() << "," 
+                << " eta = " << leadTrack->eta() << "," 
+                << " phi = " << leadTrack->phi() << std::endl;
     }
 
     // CV: compute and set DNN input variables
-    dnnInputs_.flat<float>().setZero();
+    dnnInputs_->flat<float>().setZero();
     size_t idx_dnnInput = 0;
     for ( auto const& jetInput : jetInputs_ )
     {
-      set_dnnInput(*dnnInputs_, idx_dnnInput, compJetInput(*jetRef, jetInput));
+      set_dnnInput(*dnnInputs_, idx_dnnInput, compJetInput(*pfJetRef, jetInput, leadTrack));
       ++idx_dnnInput;
     }
-    for ( auto const& inputVariable : pfCandInputs_ )
-    {      
-      set_dnnInput(*dnnInputs_, idx_dnnInput, compPFCandInput(pfCand, inputVariable, primaryVertexRef->position(), leadTrack.get()));
-      ++idx_dnnInput;
+    for ( auto const& pfJetConstituent : pfJetConstituents )
+    {
+      for ( auto const& inputVariable : pfCandInputs_ )
+      {      
+        set_dnnInput(*dnnInputs_, idx_dnnInput, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), leadTrack));
+        ++idx_dnnInput;
+      }
     }
     
     // CV: compute DNN output
     std::vector<tensorflow::Tensor> dnnOutputs;
-    tensorflow::run(&dnn_->getSession(), {{dnnInputLayerName_, dnnInputs}}, {dnnOutputLayerName_}, &dnnOutputs);
+    tensorflow::run(&dnn_->getSession(), {{ dnnInputLayerName_, *dnnInputs_ }}, { dnnOutputLayerName_ }, &dnnOutputs);
     if ( verbosity_ >= 1 ) 
     {
       std::cout << "output = { ";
@@ -223,28 +252,30 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     }
     
     signalQualityCuts_.setPV(primaryVertexRef);
-    signalQualityCuts_.setLeadTrack(leadTrackRef);
+    signalQualityCuts_.setLeadTrack(*leadTrack);
 
     std::vector<reco::PFCandidatePtr> signalPFCands;
+    std::vector<double> signalPFEnFracs;
     std::vector<reco::PFCandidatePtr> isolationPFCands;
 
-    for ( size_t idxJetConstituent = 0; idxJetConstituent < std::min(jetConstituents.size(), num_dnnOutputs_); ++idxJetConstituent )
+    for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(pfJetConstituents.size(), num_dnnOutputs_); ++idxPFJetConstituent )
     {
-      const reco::PFCandidate& jetConstituent = *jetConstituents[idxJetConstituent];
-      double signalPFEnFrac = dnnOutputs[0].flat<float>()(idxJetConstituent);
-      if ( signalPFEnFrac >= signalMinPFEnFrac && signalQualityCuts_.filterCand(jetConstituent) )
+      const reco::PFCandidate& pfJetConstituent = *pfJetConstituents[idxPFJetConstituent];
+      double signalPFEnFrac = dnnOutputs[0].flat<float>()(idxPFJetConstituent);
+      if ( signalPFEnFrac >= signalMinPFEnFrac_ && signalQualityCuts_.filterCand(pfJetConstituent) )
       {
-        reco::PFCandidate signalPFCand = clonePFCandidate(jetConstituent, signalPFEnFrac);
-        splittedPFCands.push_back(signalPFCand);
-        edm::Ptr<reco::PFCandidate> signalPFCandPtr(splittedPFCandsRefProd, splittedPFCands.size() - 1);
+        reco::PFCandidate signalPFCand = clonePFCand(pfJetConstituent, signalPFEnFrac);
+        splittedPFCands->push_back(signalPFCand);
+        edm::Ptr<reco::PFCandidate> signalPFCandPtr(splittedPFCandsRefProd.id(), splittedPFCands->size() - 1, splittedPFCandsRefProd.productGetter());
         signalPFCands.push_back(signalPFCandPtr);
+        signalPFEnFracs.push_back(signalPFEnFrac);
       }
       double isolationPFEnFrac = 1. - signalPFEnFrac;
-      if ( isolationPFEnFrac >= isolationMinPFEnFrac )
+      if ( isolationPFEnFrac >= isolationMinPFEnFrac_ )
       {
-        reco::PFCandidate isolationPFCand = clonePFCandidate(jetConstituent, isolationPFEnFrac);
-        splittedPFCands.push_back(isolationPFCand);
-        edm::Ptr<reco::PFCandidate> isolationPFCandPtr(splittedPFCandsRefProd, splittedPFCands.size() - 1);
+        reco::PFCandidate isolationPFCand = clonePFCand(pfJetConstituent, isolationPFEnFrac);
+        splittedPFCands->push_back(isolationPFCand);
+        edm::Ptr<reco::PFCandidate> isolationPFCandPtr(splittedPFCandsRefProd.id(), splittedPFCands->size() - 1, splittedPFCandsRefProd.productGetter());
         isolationPFCands.push_back(isolationPFCandPtr);
       }
     }
@@ -259,26 +290,34 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     size_t numPFCands = pfCands->size();
     for ( size_t idxPFCand = 0; idxPFCand < numPFCands; ++idxPFCand ) 
     {
-      reco::PFCandidatePtr pfCandPtr(pfCand, idxPFCand);
+      reco::PFCandidatePtr pfCandPtr(pfCands, idxPFCand);
       double dR_tau = deltaR(pfCandPtr->p4(), pfTauP4);
       if ( dR_tau < isolationConeSize_ )
       {
-        bool isJetConstituent = false;
-        for ( auto const& jetConstituent : jetConstituents )
+        bool isPFJetConstituent = false;
+        for ( auto const& pfJetConstituent : pfJetConstituents )
         {
-          double dR_jetConstituent = deltaR(pfCandPtr->p4(), jetConstituent->p4());
+          double dR_jetConstituent = deltaR(pfCandPtr->p4(), pfJetConstituent->p4());
           if ( dR_jetConstituent > 1.e-3 ) continue;
-          if ( pfCandPtr->particleId() == jetConstituent->particleId() ) continue;
-          if ( !(pfCandPtr->energy() > 0.99*jetConstituent->energy() && pfCandPtr->energy() < 1.01*jetConstituent->energy()) ) continue;
-          isJetConstituent = true;
+          if ( pfCandPtr->particleId() == pfJetConstituent->particleId() ) continue;
+          if ( !(pfCandPtr->energy() > 0.99*pfJetConstituent->energy() && pfCandPtr->energy() < 1.01*pfJetConstituent->energy()) ) continue;
+          isPFJetConstituent = true;
           break;
         }
-        if ( !isJetConstituent ) isolationPFCands.push_back(pfCandPtr);
+        if ( !isPFJetConstituent ) isolationPFCands.push_back(pfCandPtr);
       }
     }
     
-    reco::PFTau pfTau = tauBuilder_(jetRef, signalPFCands, isolationPFCands, primaryVertexPos);
-    pfTaus.push_back(pfTau);
+    // CV: sort signal and PFCandidates by decreasing pT
+    std::sort(signalPFCands.begin(), signalPFCands.end(), isHigherPt);
+    std::sort(isolationPFCands.begin(), isolationPFCands.end(), isHigherPt);
+
+    reco::PFTau pfTau = tauBuilder_(pfJetRef, signalPFCands, signalPFEnFracs, isolationPFCands, primaryVertexPos);
+    if ( verbosity_ >= 1 )
+    {
+      std::cout << pfTau << std::endl;
+    }
+    pfTaus->push_back(pfTau);
   }
 
   evt.put(std::move(pfTaus));
@@ -291,7 +330,7 @@ TallinnTauProducer::initializeGlobalCache(const edm::ParameterSet& cfg)
   return std::make_unique<TallinnTauCache>(cfg.getParameter<edm::VParameterSet>("graphs"));
 }
 
-static void
+void
 TallinnTauProducer::globalEndJob(const TallinnTauCache* dnn)
 {}
 
@@ -307,8 +346,7 @@ TallinnTauProducer::fillDescriptions(edm::ConfigurationDescriptions& description
   desc.add<vstring>("pfCandInputs", {});
   desc.add<unsigned>("maxNumPFCands", 25);
   edm::ParameterSetDescription desc_graphs;
-  desc_graphs.add<std::string>("inputFile", "");
-  desc_graphs.add<std::string>("graphName", "");
+  TallinnTauCache::fillDescriptions(desc_graphs);
   desc.addVPSet("graphs", desc_graphs, {});
   desc.add<double>("signalMinPFEnFrac", 0.);
   desc.add<double>("isolationMinPFEnFrac", 0.);

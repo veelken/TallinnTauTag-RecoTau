@@ -1,16 +1,15 @@
 <use   name="CommonTools/Utils"/>
 <use   name="DataFormats/JetReco"/>
-<use   name="DataFormats/Math"/>
 <use   name="DataFormats/ParticleFlowCandidate"/>
-<use   name="DataFormats/TauReco"/>
+https://cmssdt.cern.ch/lxr/source/DataFormats/VertexReco/interface/Vertex.h
 <use   name="FWCore/Framework"/>
+<use   name="FWCore/MessageLogger"/>
 <use   name="FWCore/ParameterSet"/>
 <use   name="FWCore/Utilities"/>
+<use   name="PhysicsTools/TensorFlow"/>
 <use   name="RecoTauTag/RecoTau"/>
-<use   name="TallinnTauTag/RecoTau"/>
 <use   name="root"/>
 <!--Flags CXXFLAGS="-ggdb3 -Og" /-->
 <export>
   <lib   name="1"/>
 </export>
-

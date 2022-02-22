@@ -11,13 +11,13 @@
 
 #include "RecoTauTag/RecoTau/interface/RecoTauQualityCuts.h"            // reco::tau::RecoTauQualityCuts
 #include "RecoTauTag/RecoTau/interface/RecoTauVertexAssociator.h"       // reco::tau::RecoTauVertexAssociator 
-#include "CommonTools/Utils/interface/StringObjectFunction.h"           // StringObjectFunction
 #include "PhysicsTools/TensorFlow/interface/TensorFlow.h"               // tensorflow::Tensor
 
 #include "DataFormats/JetReco/interface/PFJet.h"                        // reco::PFJet, reco::PFJetRef
 #include "DataFormats/JetReco/interface/PFJetCollection.h"              // reco::PFJetCollection
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"    // reco::PFCandidate
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidateFwd.h" // reco::PFCandidateCollection
+#include "DataFormats/VertexReco/interface/Vertex.h"                    // reco::Vertex::Point
 
 #include "TallinnTauTag/RecoTau/interface/TallinnTauBuilder.h"          // reco::tau::TallinnTauBuilder
 #include "TallinnTauTag/RecoTau/interface/TallinnTauCache.h"            // reco::tau::TallinnTauCache
@@ -48,8 +48,9 @@ namespace reco
 
      private:
       double 
-      compJetInput(const reco::PFJet& jet, 
-                   const std::string& inputVariable) const;
+      compJetInput(const reco::PFJet& pfJet,
+                   const std::string& inputVariable,
+                   const reco::Track* leadTrack) const;
       double 
       compPFCandInput(const reco::PFCandidate& pfCand, 
                       const std::string& inputVariable, 
@@ -70,12 +71,10 @@ namespace reco
       std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFJet>>> jetInputExtractors_;
       std::vector<std::string> pfCandInputs_;
       std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFCandidate>>> pfCandInputExtractors_;
-      unsigned maxNumPFCands_;
-
-      unsigned num_dnnInputs_;
-      std::unique_ptr<tensorflow::Tensor> dnnInputs_;
+      size_t maxNumPFCands_;
 
       const TallinnTauCache* dnn_;
+      std::unique_ptr<tensorflow::Tensor> dnnInputs_;
       size_t num_dnnInputs_;
       size_t num_dnnOutputs_;
       std::string dnnInputLayerName_;

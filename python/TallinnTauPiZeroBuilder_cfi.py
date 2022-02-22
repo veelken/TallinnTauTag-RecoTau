@@ -14,6 +14,7 @@ tallinnTauPiZeros = cms.PSet(
         par0 = cms.double(3.52476e-01),
         par1 = cms.double(7.07716e-01)
     ),
+    minStripPt = cms.double(2.5),
     verbosity = cms.int32(0)
 )
 #--------------------------------------------------------------------------------

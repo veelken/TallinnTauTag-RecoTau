@@ -4,9 +4,11 @@
 
 #include "TString.h"
 
+using namespace reco::tau;
+
 //-------------------------------------------------------------------------------
-# CV: function makeFunction copied from
-#       RecoTauTag/RecoTau/plugins/RecoTauPiZeroStripPlugin3.cc
+// CV: function makeFunction copied from
+//       RecoTauTag/RecoTau/plugins/RecoTauPiZeroStripPlugin3.cc
 namespace 
 {
   std::unique_ptr<TFormula> makeFunction(const std::string& functionName, const edm::ParameterSet& pset) 
@@ -26,24 +28,25 @@ namespace
 //-------------------------------------------------------------------------------
 
 TallinnTauPiZeroBuilder::TallinnTauPiZeroBuilder(const edm::ParameterSet& cfg)
+  : inputParticleIds_(cfg.getParameter<std::vector<int>>("stripCandidatesParticleIds"))
+  , minStripPt_(cfg.getParameter<double>("minStripPt"))
+  , verbosity_(cfg.getParameter<int>("verbosity"))
 {
-  inputParticleIds_ = pset.getParameter<std::vector<int> >("stripCandidatesParticleIds");
-  const edm::ParameterSet& stripSize_eta_pset = pset.getParameterSet("stripEtaAssociationDistanceFunc");
-  etaAssociationDistance_ = makeFunction("etaAssociationDistance", stripSize_eta_pset);
-  const edm::ParameterSet& stripSize_phi_pset = pset.getParameterSet("stripPhiAssociationDistanceFunc");
-  phiAssociationDistance_ = makeFunction("phiAssociationDistance", stripSize_phi_pset);
-  verbosity_ = cfg.getParameter<int>("verbosity");
+  const edm::ParameterSet& cfg_stripSizeEta = cfg.getParameterSet("stripEtaAssociationDistanceFunc");
+  etaAssociationDistance_ = makeFunction("etaAssociationDistance", cfg_stripSizeEta);
+  const edm::ParameterSet& cfg_stripSizePhi = cfg.getParameterSet("stripPhiAssociationDistanceFunc");
+  phiAssociationDistance_ = makeFunction("phiAssociationDistance", cfg_stripSizePhi);
 }
  
 TallinnTauPiZeroBuilder::~TallinnTauPiZeroBuilder()
 {}
 
 //-------------------------------------------------------------------------------
-# CV: code for function setBendCorr copied from
-#       RecoTauTag/RecoTau/plugins/RecoTauPiZeroStripPlugin3.cc
+// CV: code for function setBendCorr copied from
+//       RecoTauTag/RecoTau/plugins/RecoTauPiZeroStripPlugin3.cc
 namespace 
 {
-  double setBendCorr(reco::RecoTauPiZero& strip, const TFormula& etaAssociationDistance, const TFormula& phiAssociationDistance) 
+  void setBendCorr(reco::RecoTauPiZero& strip, const TFormula& etaAssociationDistance, const TFormula& phiAssociationDistance) 
   {
     double bendCorrEta = 0.;
     double bendCorrPhi = 0.;
@@ -67,7 +70,7 @@ namespace
 //-------------------------------------------------------------------------------
 
 reco::RecoTauPiZeroCollection 
-TallinnTauPiZeroBuilder::operator()(const std::vector<edm::Ptr<reco::PFCandidate>>& pfCands, const reco::Vertex::Point& primaryVertexPos)
+TallinnTauPiZeroBuilder::operator()(const std::vector<reco::PFCandidatePtr>& pfCands, const reco::Vertex::Point& primaryVertexPos)
 {
   int piZeroCharge = 0;
   reco::Candidate::LorentzVector piZeroP4;
@@ -76,20 +79,29 @@ TallinnTauPiZeroBuilder::operator()(const std::vector<edm::Ptr<reco::PFCandidate
     piZeroP4 += pfCand->p4();
   }
   RecoTauPiZero piZero(piZeroCharge, piZeroP4, primaryVertexPos);
+  for ( auto const& pfCand : pfCands ) 
+  {
+    piZero.addDaughter(reco::CandidatePtr(pfCand));
+  }
   setBendCorr(piZero, *etaAssociationDistance_, *phiAssociationDistance_);
-  reco::RecoTauPiZeroCollection piZeros.push_back(piZero);
+  reco::RecoTauPiZeroCollection piZeros;
+  if ( piZero.pt() > minStripPt_ ) 
+  {
+    piZeros.push_back(piZero);
+  }
   return piZeros;
 }
 
 namespace 
 {
+  void
   fillDescriptions_stripAssociationDistanceFunc(edm::ParameterSetDescription& desc)
   {
     desc.add<std::string>("function", "");
     desc.add<double>("par0", 0.);
     desc.add<double>("par1", 0.);
   }
-}
+} // namespace
 
 void 
 TallinnTauPiZeroBuilder::fillDescriptions(edm::ParameterSetDescription& desc)
@@ -101,5 +113,6 @@ TallinnTauPiZeroBuilder::fillDescriptions(edm::ParameterSetDescription& desc)
   edm::ParameterSetDescription desc_stripPhiAssociationDistanceFunc;
   fillDescriptions_stripAssociationDistanceFunc(desc_stripPhiAssociationDistanceFunc);
   desc.add<edm::ParameterSetDescription>("stripPhiAssociationDistanceFunc", desc_stripPhiAssociationDistanceFunc);
+  desc.add<double>("minStripPt", 2.5);
   desc.add<int>("verbosity", 0);
 }
