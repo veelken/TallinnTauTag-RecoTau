@@ -106,7 +106,7 @@ namespace
 void 
 TallinnTauPiZeroBuilder::fillDescriptions(edm::ParameterSetDescription& desc)
 {
-  desc.add<std::vector<int>>("stripCandidatesParticleIds", std::vector<int>({ 2, 4 }));
+  desc.add<std::vector<int>>("stripCandidatesParticleIds", std::vector<int>({ 2, 4 })); // e, gamma
   edm::ParameterSetDescription desc_stripEtaAssociationDistanceFunc;
   fillDescriptions_stripAssociationDistanceFunc(desc_stripEtaAssociationDistanceFunc);
   desc.add<edm::ParameterSetDescription>("stripEtaAssociationDistanceFunc", desc_stripEtaAssociationDistanceFunc);

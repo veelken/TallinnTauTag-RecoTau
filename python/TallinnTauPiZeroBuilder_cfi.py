@@ -1,3 +1,4 @@
+import FWCore.ParameterSet.Config as cms
 
 #--------------------------------------------------------------------------------
 # CV: configuration parameters for TallinnTauPiZeroBuilder copied from

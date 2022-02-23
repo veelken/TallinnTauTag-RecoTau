@@ -17,8 +17,8 @@ tallinnTaus = cms.EDProducer("TallinnTauProducer",
     minJetPt = PFRecoTauPFJetInputs.minJetPt,
     maxJetAbsEta = PFRecoTauPFJetInputs.maxJetAbsEta,
     pfCandSrc = cms.InputTag("particleFlow"),
-    jetInputs = cms.vstring("pt", "eta", "phi", "mass", "numConstituents"),
-    pfCandInputs = cms.vstring("pt", "eta", "phi", "particleId", "dz", "dxy"),
+    jetInputs = cms.vstring("numConstituents"),
+    pfCandInputs = cms.vstring("pt", "phi", "eta", "energy"),
     maxNumPFCands = cms.uint32(25),
     graphs = cms.VPSet(
         cms.PSet(

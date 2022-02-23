@@ -344,7 +344,7 @@ void
 TallinnTauProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) 
 {
   edm::ParameterSetDescription desc;
-  desc.add<edm::InputTag>("jetSrc", edm::InputTag("ak4PFJets"));
+  desc.add<edm::InputTag>("pfJetSrc", edm::InputTag("ak4PFJets"));
   desc.add<double>("minJetPt", 14.0);
   desc.add<double>("maxJetAbsEta", 2.5);
   desc.add<edm::InputTag>("pfCandSrc", edm::InputTag("particleFlow"));
@@ -360,6 +360,7 @@ TallinnTauProducer::fillDescriptions(edm::ConfigurationDescriptions& description
   edm::ParameterSetDescription desc_qualityCuts;
   RecoTauQualityCuts::fillDescriptions(desc_qualityCuts);
   desc.add<edm::ParameterSetDescription>("qualityCuts", desc_qualityCuts);
+  desc.add<std::vector<int>>("chargedHadrParticleIds", { 1, 2, 3 }); // h, e, mu
   TallinnTauBuilder::fillDescriptions(desc);
   desc.add<int>("verbosity", 0);
   descriptions.add("tallinnRecoTaus", desc);
