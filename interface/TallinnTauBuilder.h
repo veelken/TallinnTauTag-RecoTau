@@ -13,6 +13,9 @@
 
 #include "TallinnTauTag/RecoTau/interface/TallinnTauPiZeroBuilder.h" // reco::tau::TallinnTauPiZeroBuilder
 
+#include <vector>  // std::vector
+#include <utility> // std::pair
+
 namespace reco 
 {
   namespace tau 
@@ -25,7 +28,7 @@ namespace reco
 
       reco::PFTau
       operator()(const reco::PFJetRef& jetRef,
-                 const std::vector<reco::PFCandidatePtr>& signalPFCands, const std::vector<double>& signalPFEnFracs,
+                 const std::vector<std::pair<reco::PFCandidatePtr, double>>& signalPFCands_and_EnFracs,
                  const std::vector<reco::PFCandidatePtr>& isolationPFCands, 
                  const reco::Vertex::Point& primaryVertexPos);
 

@@ -127,12 +127,17 @@ namespace
 
 reco::PFTau
 TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
-                              const std::vector<reco::PFCandidatePtr>& signalPFCands, const std::vector<double>& signalPFEnFracs, 
+                              const std::vector<std::pair<reco::PFCandidatePtr, double>>& signalPFCands_and_EnFracs,
                               const std::vector<reco::PFCandidatePtr>& isolationPFCands, 
                               const reco::Vertex::Point& primaryVertexPos)
 {
   reco::PFTau pfTau;
   pfTau.setjetRef(edm::RefToBase<reco::Jet>(jetRef));
+  std::vector<reco::PFCandidatePtr> signalPFCands;
+  for ( auto const& signalPFCand_and_EnFrac : signalPFCands_and_EnFracs )
+  {
+    signalPFCands.push_back(signalPFCand_and_EnFrac.first);
+  }
   reco::Candidate::LorentzVector signalPFCandP4 = getSumP4(signalPFCands);
   pfTau.setP4(signalPFCandP4);
   double signalConeSize = signalConeSize_(pfTau);
@@ -141,11 +146,10 @@ TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
   pfTau.setsignalPiZeroCandidates(piZeros);
   double numTracks_float = 0;
   double charge_float = 0.;
-  assert(signalPFCands.size() == signalPFEnFracs.size());
-  for ( size_t idx_signalPFCand = 0; idx_signalPFCand < signalPFCands.size(); ++idx_signalPFCand )
+  for ( auto const& signalPFCand_and_EnFrac : signalPFCands_and_EnFracs )
   {
-    const reco::PFCandidatePtr& signalPFCand = signalPFCands[idx_signalPFCand];
-    double signalPFEnFrac = signalPFEnFracs[idx_signalPFCand];
+    const reco::PFCandidatePtr& signalPFCand = signalPFCand_and_EnFrac.first;
+    double signalPFEnFrac = signalPFCand_and_EnFrac.second;
     if ( signalPFCand->charge() != 0. ) numTracks_float += signalPFEnFrac;
     charge_float += signalPFEnFrac*signalPFCand->charge();
   }

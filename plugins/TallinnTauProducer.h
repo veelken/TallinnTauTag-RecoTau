@@ -22,8 +22,8 @@
 #include "TallinnTauTag/RecoTau/interface/TallinnTauBuilder.h"          // reco::tau::TallinnTauBuilder
 #include "TallinnTauTag/RecoTau/interface/TallinnTauCache.h"            // reco::tau::TallinnTauCache
 
-#include <string>
-#include <vector>
+#include <string>                                                       // std::string
+#include <vector>                                                       // std::vector
 
 namespace reco 
 {

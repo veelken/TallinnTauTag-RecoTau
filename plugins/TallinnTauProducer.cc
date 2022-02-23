@@ -11,6 +11,7 @@
 
 #include <iostream>                                                // std::cout, std::endl
 #include <memory>                                                  // std::make_unique<>
+#include <utility>                                                 // std::pair
 #include <algorithm>                                               // std::sort
 
 using namespace reco::tau;
@@ -148,6 +149,12 @@ namespace
   }
 
   bool
+  isHigherPt_pair(const std::pair<reco::PFCandidatePtr, double>& pfCand1, const std::pair<reco::PFCandidatePtr, double>& pfCand2)
+  {
+    return pfCand1.first->pt() > pfCand2.first->pt();
+  }
+
+  bool
   isHigherPt(const reco::PFCandidatePtr& pfCand1, const reco::PFCandidatePtr& pfCand2)
   {
     return pfCand1->pt() > pfCand2->pt();
@@ -254,8 +261,7 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     signalQualityCuts_.setPV(primaryVertexRef);
     signalQualityCuts_.setLeadTrack(*leadTrack);
 
-    std::vector<reco::PFCandidatePtr> signalPFCands;
-    std::vector<double> signalPFEnFracs;
+    std::vector<std::pair<reco::PFCandidatePtr, double>> signalPFCands_and_EnFracs;
     std::vector<reco::PFCandidatePtr> isolationPFCands;
 
     for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(pfJetConstituents.size(), num_dnnOutputs_); ++idxPFJetConstituent )
@@ -267,8 +273,7 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         reco::PFCandidate signalPFCand = clonePFCand(pfJetConstituent, signalPFEnFrac);
         splittedPFCands->push_back(signalPFCand);
         edm::Ptr<reco::PFCandidate> signalPFCandPtr(splittedPFCandsRefProd.id(), splittedPFCands->size() - 1, splittedPFCandsRefProd.productGetter());
-        signalPFCands.push_back(signalPFCandPtr);
-        signalPFEnFracs.push_back(signalPFEnFrac);
+        signalPFCands_and_EnFracs.push_back(std::make_pair(signalPFCandPtr, signalPFEnFrac));
       }
       double isolationPFEnFrac = 1. - signalPFEnFrac;
       if ( isolationPFEnFrac >= isolationMinPFEnFrac_ )
@@ -283,8 +288,9 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     // CV: process PFCandidates within isolation cone, which are not constituents of the jet that seeds the tau reconstruction;
     //     center isolation cone on the direction given by the momentum sum of jet constituents indentified as tau decay products by the DNN
     reco::Candidate::LorentzVector pfTauP4;
-    for ( auto const& signalPFCand : signalPFCands )
+    for ( auto const& signalPFCand_and_EnFrac : signalPFCands_and_EnFracs )
     {
+      const reco::PFCandidatePtr& signalPFCand = signalPFCand_and_EnFrac.first;
       pfTauP4 += signalPFCand->p4();
     }
     size_t numPFCands = pfCands->size();
@@ -309,10 +315,10 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     }
     
     // CV: sort signal and PFCandidates by decreasing pT
-    std::sort(signalPFCands.begin(), signalPFCands.end(), isHigherPt);
+    std::sort(signalPFCands_and_EnFracs.begin(), signalPFCands_and_EnFracs.end(), isHigherPt_pair);
     std::sort(isolationPFCands.begin(), isolationPFCands.end(), isHigherPt);
 
-    reco::PFTau pfTau = tauBuilder_(pfJetRef, signalPFCands, signalPFEnFracs, isolationPFCands, primaryVertexPos);
+    reco::PFTau pfTau = tauBuilder_(pfJetRef, signalPFCands_and_EnFracs, isolationPFCands, primaryVertexPos);
     if ( verbosity_ >= 1 )
     {
       std::cout << pfTau << std::endl;
