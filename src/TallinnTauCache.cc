@@ -16,6 +16,7 @@ TallinnTauCache::TallinnTauCache(const edm::VParameterSet& cfg_graphs)
     
     std::string inputFileName_full = edm::FileInPath(inputFileName).fullPath();
     tensorflow::SessionOptions options;
+    tensorflow::setLogging("3");
     tensorflow::setThreading(options, 1);
     graphs_[graphName].reset(tensorflow::loadGraphDef(inputFileName_full));
     sessions_[graphName] = tensorflow::createSession(graphs_[graphName].get(), options);

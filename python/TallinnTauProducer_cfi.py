@@ -17,12 +17,12 @@ tallinnTaus = cms.EDProducer("TallinnTauProducer",
     minJetPt = PFRecoTauPFJetInputs.minJetPt,
     maxJetAbsEta = PFRecoTauPFJetInputs.maxJetAbsEta,
     pfCandSrc = cms.InputTag("particleFlow"),
-    jetInputs = cms.vstring("numConstituents"),
-    pfCandInputs = cms.vstring("pt", "phi", "eta", "energy"),
-    maxNumPFCands = cms.uint32(25),
+    jetInputs = cms.vstring("numPFCands", "pt", "eta", "phi", "mass"),
+    pfCandInputs = cms.vstring("pt", "eta", "phi", "particleId", "charge", "dR_jet", "dEta_jet", "dPhi_jet", "dz"),
+    maxNumPFCands = cms.uint32(20),
     graphs = cms.VPSet(
         cms.PSet(
-            inputFile = cms.string("TallinnTauTag/RecoTau/data/dnn_2020Feb21.pb"),
+            inputFile = cms.string("TallinnTauTag/RecoTau/data/dnn_2022Feb25.pb"),
             graphName = cms.string("")
         )
     ),
@@ -33,5 +33,7 @@ tallinnTaus = cms.EDProducer("TallinnTauProducer",
     qualityCuts = PFTauQualityCuts,
     chargedHadrParticleIds = cms.vint32(1, 2, 3), # h, e, mu
     piZeros = tallinnTauPiZeros,
-    verbosity = cms.int32(0)
+    saveInputs = cms.bool(True),
+    jsonFileName = cms.string("TallinnTauProducer_2022Feb18.json"),
+    verbosity = cms.int32(2)
 )

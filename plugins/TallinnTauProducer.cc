@@ -9,6 +9,9 @@
 #include "DataFormats/Math/interface/deltaR.h"                     // reco::deltaR()
 #include "DataFormats/Math/interface/deltaPhi.h"                   // reco::deltaPhi()
 
+#include "TallinnTauTag/RecoTau/interface/hashAuxFunctions.h"      // getHash_jet(), getHash_pfCand()
+
+#include <sstream>                                                 // std::ostringstream
 #include <iostream>                                                // std::cout, std::endl
 #include <memory>                                                  // std::make_unique<>
 #include <utility>                                                 // std::pair
@@ -32,6 +35,9 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
   , signalQualityCuts_(cfg.getParameterSet("qualityCuts").getParameterSet("signalQualityCuts"))
   , vertexAssociator_(cfg.getParameterSet("qualityCuts"), consumesCollector())
   , tauBuilder_(cfg)
+  , saveInputs_(cfg.getParameter<bool>("saveInputs"))
+  , jsonFileName_(cfg.getParameter<std::string>("jsonFileName"))
+  , jsonFile_(nullptr)
   , verbosity_(cfg.getParameter<int>("verbosity"))
 {
   std::cout << "<TallinnTauProducer::TallinnTauProducer (moduleLabel = " << moduleLabel_ << ")>:" << std::endl;
@@ -41,15 +47,6 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
 
   pfCandSrc_ = cfg.getParameter<edm::InputTag>("pfCandSrc");
   pfCandToken_ = consumes<reco::PFCandidateCollection>(pfCandSrc_);
-
-  for ( auto const& jetInput : jetInputs_ )
-  {
-    jetInputExtractors_[jetInput] = std::make_unique<StringObjectFunction<reco::PFJet>>(jetInput);
-  }
-  for ( auto const& pfCandInput : pfCandInputs_ )
-  {
-    pfCandInputExtractors_[pfCandInput] = std::make_unique<StringObjectFunction<reco::PFCandidate>>(pfCandInput);
-  }
 
   num_dnnInputs_ = jetInputs_.size() + pfCandInputs_.size()*maxNumPFCands_;
   dnnInputs_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ 1, (long)num_dnnInputs_ });
@@ -64,23 +61,45 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
     throw cms::Exception("TallinnTauProducer")
       << "Size of DNN input layer = " << dnnInputLayer.dim(1).size() << " does not match number of DNN input variables = " << num_dnnInputs_ << " !!";
 
+  if ( saveInputs_ ) 
+  {
+    jsonFile_ = new std::ofstream(jsonFileName_.data());
+    (*jsonFile_) << "{";
+  }
+
   produces<reco::PFTauCollection>();
   produces<reco::PFCandidateCollection>("splittedPFCands");
 }
 
 TallinnTauProducer::~TallinnTauProducer()
-{}
+{
+  if ( saveInputs_ )
+  {
+    (*jsonFile_) << "}";
+    delete jsonFile_;
+  }
+}
 
 double 
 TallinnTauProducer::compJetInput(const reco::PFJet& pfJet, const std::string& inputVariable, const reco::Track* leadTrack) const
 {
+  //std::cout << "<TallinnTauProducer::compJetInput>:" << std::endl;
+  //std::cout << " jet: pT = " << pfJet.pt() << ", eta = " << pfJet.eta() << ", phi = " << pfJet.phi() << std::endl;
+  //std::cout << " inputVariable = '" << inputVariable << "'" << std::endl;
   double retVal = 0.;
-  if      ( inputVariable == "dR_leadTrack"   ) retVal = deltaR(pfJet.p4(), leadTrack->momentum());
-  else if ( inputVariable == "dEta_leadTrack" ) retVal = std::fabs(pfJet.eta() - leadTrack->eta());
-  else if ( inputVariable == "dPhi_leadTrack" ) retVal = deltaPhi(pfJet.phi(), leadTrack->phi());
+  if      ( inputVariable == "dR_leadTrack"      ) retVal = deltaR(pfJet.p4(), leadTrack->momentum());
+  else if ( inputVariable == "dEta_leadTrack"    ) retVal = std::fabs(pfJet.eta() - leadTrack->eta());
+  else if ( inputVariable == "dPhi_leadTrack"    ) retVal = deltaPhi(pfJet.phi(), leadTrack->phi());
+  else if ( inputVariable == "numPFCands"        ) retVal = pfJet.getPFConstituents().size();
+  else if ( inputVariable == "leadTrackPt/jetPt" ) retVal = leadTrack->pt()/pfJet.pt();
   else
   {
     auto jetInputExtractor = jetInputExtractors_.find(inputVariable);
+    if ( jetInputExtractor == jetInputExtractors_.end() )
+    {
+      jetInputExtractors_[inputVariable] = std::make_unique<StringObjectFunction<reco::PFJet>>(inputVariable);
+      jetInputExtractor = jetInputExtractors_.find(inputVariable);      
+    }
     assert(jetInputExtractor != jetInputExtractors_.end());
     retVal = (*jetInputExtractor->second)(pfJet);
   }
@@ -107,8 +126,11 @@ double
 TallinnTauProducer::compPFCandInput(const reco::PFCandidate& pfCand, 
                                     const std::string& inputVariable, 
                                     const reco::Vertex::Point& primaryVertexPos,
-                                    const reco::Track* leadTrack) const
+                                    const reco::PFJet& pfJet, const reco::Track* leadTrack) const
 {
+  //std::cout << "<TallinnTauProducer::compPFCandInput>:" << std::endl;
+  //std::cout << " pfCand: pT = " << pfCand.pt() << ", eta = " << pfCand.eta() << ", phi = " << pfCand.phi() << std::endl;
+  //std::cout << " inputVariable = '" << inputVariable << "'" << std::endl;
   double retVal = 0.;
   if ( inputVariable == "dz" || inputVariable == "dxy" )
   {
@@ -123,9 +145,18 @@ TallinnTauProducer::compPFCandInput(const reco::PFCandidate& pfCand,
   else if ( inputVariable == "dR_leadTrack"   ) retVal = deltaR(pfCand.p4(), leadTrack->momentum());
   else if ( inputVariable == "dEta_leadTrack" ) retVal = std::fabs(pfCand.eta() - leadTrack->eta());
   else if ( inputVariable == "dPhi_leadTrack" ) retVal = deltaPhi(pfCand.phi(), leadTrack->phi());
+  else if ( inputVariable == "dR_jet"         ) retVal = deltaR(pfCand.p4(), pfJet.p4());
+  else if ( inputVariable == "dEta_jet"       ) retVal = std::fabs(pfCand.eta() - pfJet.eta());
+  else if ( inputVariable == "dPhi_jet"       ) retVal = deltaPhi(pfCand.phi(), pfJet.phi());
+  else if ( inputVariable == "pfCandPt/jetPt" ) retVal = pfCand.pt()/pfJet.pt();
   else
   {
     auto pfCandInputExtractor = pfCandInputExtractors_.find(inputVariable);
+    if ( pfCandInputExtractor == pfCandInputExtractors_.end() )
+    {
+      pfCandInputExtractors_[inputVariable] = std::make_unique<StringObjectFunction<reco::PFCandidate>>(inputVariable);
+      pfCandInputExtractor = pfCandInputExtractors_.find(inputVariable);
+    }
     assert(pfCandInputExtractor != pfCandInputExtractors_.end());
     retVal = (*pfCandInputExtractor->second)(pfCand);
   }
@@ -169,13 +200,15 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
   std::unique_ptr<reco::PFTauCollection> pfTaus = std::make_unique<reco::PFTauCollection>();
   std::unique_ptr<reco::PFCandidateCollection> splittedPFCands = std::make_unique<reco::PFCandidateCollection>();
 
-  reco::PFCandidateRefProd splittedPFCandsRefProd = evt.getRefBeforePut<reco::PFCandidateCollection>();
+  reco::PFCandidateRefProd splittedPFCandsRefProd = evt.getRefBeforePut<reco::PFCandidateCollection>("splittedPFCands");
 
   edm::Handle<reco::PFJetCollection> pfJets;
   evt.getByToken(pfJetToken_, pfJets);
 
   edm::Handle<reco::PFCandidateCollection> pfCands;
   evt.getByToken(pfCandToken_, pfCands);
+
+  vertexAssociator_.setEvent(evt);
 
   size_t numPFJets = pfJets->size();
   for ( size_t idxPFJet = 0; idxPFJet < numPFJets; ++idxPFJet )
@@ -211,7 +244,8 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       std::cout << "lead. track:" 
                 << " pT = " << leadTrack->pt() << "," 
                 << " eta = " << leadTrack->eta() << "," 
-                << " phi = " << leadTrack->phi() << std::endl;
+                << " phi = " << leadTrack->phi() << "," 
+                << " dz = " << leadTrack->dz(primaryVertexPos) << std::endl;
     }
 
     // CV: compute and set DNN input variables
@@ -226,13 +260,13 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     {
       for ( auto const& inputVariable : pfCandInputs_ )
       {      
-        set_dnnInput(*dnnInputs_, idx_dnnInput, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), leadTrack));
+        set_dnnInput(*dnnInputs_, idx_dnnInput, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack));
         ++idx_dnnInput;
       }
     }
     
     // CV: compute DNN output
-    std::vector<tensorflow::Tensor> dnnOutputs;
+    std::vector<tensorflow::Tensor> dnnOutputs(maxNumPFCands_);
     tensorflow::run(&dnn_->getSession(), {{ dnnInputLayerName_, *dnnInputs_ }}, { dnnOutputLayerName_ }, &dnnOutputs);
     if ( verbosity_ >= 1 ) 
     {
@@ -318,6 +352,31 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     std::sort(signalPFCands_and_EnFracs.begin(), signalPFCands_and_EnFracs.end(), isHigherPt_pair);
     std::sort(isolationPFCands.begin(), isolationPFCands.end(), isHigherPt);
 
+    if ( saveInputs_ ) 
+    {
+      if ( idxPFJet == 0 )
+      {
+        const edm::EventID& evtId = evt.id();
+        std::ostringstream key_evt;
+        key_evt << "r" << evtId.run() << "_ls" << evtId.luminosityBlock() << "_ev" << evtId.event();
+        (*jsonFile_) << "'" << key_evt.str() << "': {";
+      }
+      std::string key_jet = getHash_jet(pfJetRef->p4());
+      (*jsonFile_) << "'" << key_jet << "':{";
+      for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(pfJetConstituents.size(), num_dnnOutputs_); ++idxPFJetConstituent )
+      {
+        const reco::PFCandidate& pfJetConstituent = *pfJetConstituents[idxPFJetConstituent];
+        double signalPFEnFrac = dnnOutputs[0].flat<float>()(idxPFJetConstituent);
+        std::string key_pfCand = getHash_pfCand(pfJetConstituent.p4(), pfJetConstituent.particleId(), pfJetConstituent.charge());
+        (*jsonFile_) << "'" << key_pfCand << "':" << signalPFEnFrac << ",";
+      }
+      (*jsonFile_) << "},";
+      if ( idxPFJet == (numPFJets - 1) )
+      {
+        (*jsonFile_) << "},";
+      }
+    }
+
     reco::PFTau pfTau = tauBuilder_(pfJetRef, signalPFCands_and_EnFracs, isolationPFCands, primaryVertexPos);
     if ( verbosity_ >= 1 )
     {
@@ -350,7 +409,7 @@ TallinnTauProducer::fillDescriptions(edm::ConfigurationDescriptions& description
   desc.add<edm::InputTag>("pfCandSrc", edm::InputTag("particleFlow"));
   desc.add<vstring>("jetInputs", {});
   desc.add<vstring>("pfCandInputs", {});
-  desc.add<unsigned>("maxNumPFCands", 25);
+  desc.add<unsigned>("maxNumPFCands", 20);
   edm::ParameterSetDescription desc_graphs;
   TallinnTauCache::fillDescriptions(desc_graphs);
   desc.addVPSet("graphs", desc_graphs, {});
@@ -362,6 +421,8 @@ TallinnTauProducer::fillDescriptions(edm::ConfigurationDescriptions& description
   desc.add<edm::ParameterSetDescription>("qualityCuts", desc_qualityCuts);
   desc.add<std::vector<int>>("chargedHadrParticleIds", { 1, 2, 3 }); // h, e, mu
   TallinnTauBuilder::fillDescriptions(desc);
+  desc.add<bool>("saveInputs", false);
+  desc.add<std::string>("jsonFileName", "TallinnTauProducer.json");
   desc.add<int>("verbosity", 0);
   descriptions.add("tallinnRecoTaus", desc);
 }

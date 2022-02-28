@@ -22,6 +22,7 @@
 #include "TallinnTauTag/RecoTau/interface/TallinnTauBuilder.h"          // reco::tau::TallinnTauBuilder
 #include "TallinnTauTag/RecoTau/interface/TallinnTauCache.h"            // reco::tau::TallinnTauCache
 
+#include <fstream>                                                      // std::ofstream
 #include <string>                                                       // std::string
 #include <vector>                                                       // std::vector
 
@@ -55,7 +56,7 @@ namespace reco
       compPFCandInput(const reco::PFCandidate& pfCand, 
                       const std::string& inputVariable, 
                       const reco::Vertex::Point& primaryVertexPos,
-                      const reco::Track* leadTrack) const;
+                      const reco::PFJet& pfJet, const reco::Track* leadTrack) const;
 
       std::string moduleLabel_;
 
@@ -68,9 +69,9 @@ namespace reco
       edm::EDGetTokenT<reco::PFCandidateCollection> pfCandToken_;
 
       std::vector<std::string> jetInputs_;
-      std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFJet>>> jetInputExtractors_;
+      mutable std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFJet>>> jetInputExtractors_;
       std::vector<std::string> pfCandInputs_;
-      std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFCandidate>>> pfCandInputExtractors_;
+      mutable std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFCandidate>>> pfCandInputExtractors_;
       size_t maxNumPFCands_;
 
       const TallinnTauCache* dnn_;
@@ -89,6 +90,10 @@ namespace reco
       RecoTauVertexAssociator vertexAssociator_;
 
       TallinnTauBuilder tauBuilder_;
+
+      bool saveInputs_;
+      std::string jsonFileName_;
+      std::ofstream* jsonFile_;
 
       int verbosity_;
     };

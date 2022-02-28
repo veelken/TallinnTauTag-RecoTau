@@ -8,6 +8,7 @@ https://cmssdt.cern.ch/lxr/source/DataFormats/VertexReco/interface/Vertex.h
 <use   name="FWCore/Utilities"/>
 <use   name="PhysicsTools/TensorFlow"/>
 <use   name="RecoTauTag/RecoTau"/>
+<use   name="openssl"/>
 <use   name="root"/>
 <!--Flags CXXFLAGS="-ggdb3 -Og" /-->
 <export>
