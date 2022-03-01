@@ -25,6 +25,7 @@ patTallinnTaus = patTaus.clone(
 )
 
 # add tau ID discriminators
+patTallinnTaus.tauIDSources = cms.PSet()
 singleID(patTallinnTaus.tauIDSources, 'tallinnTauDiscriminationByDecayModeFindingNewDMs', "decayModeFindingNewDMs")
 containerID(patTallinnTaus.tauIDSources, 'tallinnTauBasicDiscriminators', "IDdefinitions", [
     [ 'chargedIsoPtSum', "ChargedIsoPtSum" ],
@@ -50,6 +51,6 @@ patTallinnTauSequence = cms.Sequence(
  + tauGenJets
  + tauGenJetsSelectorAllHadrons
  + tallinnTauGenJetMatch
- + patTallinnTaus
+## + patTallinnTaus
 )
 #-------------------------------------------------------------------------------

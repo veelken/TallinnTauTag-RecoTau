@@ -26,6 +26,9 @@ process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase1_2021_realistic', '
 
 process.productionSequence = cms.Sequence()
 
+#process.dumpEventContent = cms.EDAnalyzer("EventContentAnalyzer") 
+#process.productionSequence += process.dumpEventContent
+
 #--------------------------------------------------------------------------------
 # CV: run HPS tau reconstruction with charged isolation tau ID discriminators added
 #     and store taus in pat::Tau format
@@ -74,7 +77,10 @@ process.hpsPFTauBasicDiscriminators.IDWPdefinitions = cms.VPSet(
 process.productionSequence += process.produceAndDiscriminateHPSPFTaus
 
 process.load("PhysicsTools.PatAlgos.producersLayer1.tauProducer_cff")
-from PhysicsTools.PatAlgos.producersLayer1.tauProducer_cfi import containerID
+from PhysicsTools.PatAlgos.producersLayer1.tauProducer_cfi import singleID, containerID
+process.patTaus.tauIDSources = cms.PSet()
+singleID(process.patTaus.tauIDSources, 'hpsPFTauDiscriminationByDecayModeFinding', "decayModeFinding")
+singleID(process.patTaus.tauIDSources, 'hpsPFTauDiscriminationByDecayModeFindingNewDMs', "decayModeFindingNewDMs")
 containerID(process.patTaus.tauIDSources, "hpsPFTauBasicDiscriminators", "IDWPdefinitions", [
     [ 'byLooseCombinedIsolationDeltaBetaCorr3Hits', "ByLooseCombinedIsolationDBSumPtCorr3Hits" ],
     [ 'byMediumCombinedIsolationDeltaBetaCorr3Hits', "ByMediumCombinedIsolationDBSumPtCorr3Hits" ],
@@ -111,3 +117,6 @@ process.q = cms.EndPath(process.out)
 process.options = cms.untracked.PSet(
     wantSummary = cms.untracked.bool(True)
 )
+
+##dump_file = open('dump.py','w')
+##dump_file.write(process.dumpPython())

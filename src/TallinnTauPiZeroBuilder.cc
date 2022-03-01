@@ -1,6 +1,8 @@
 #include "TallinnTauTag/RecoTau/interface/TallinnTauPiZeroBuilder.h"
 
-#include "DataFormats/Candidate/interface/Candidate.h" // reco::Candidate::LorentzVector
+#include "DataFormats/Candidate/interface/Candidate.h"                      // reco::Candidate::LorentzVector
+
+#include "TallinnTauTag/RecoTau/interface/wrappedPFCandidateAuxFunctions.h" // reco::tau::getPFCands_of_type(), reco::tau::getSumP4()
 
 #include "TString.h"
 
@@ -46,44 +48,43 @@ TallinnTauPiZeroBuilder::~TallinnTauPiZeroBuilder()
 //       RecoTauTag/RecoTau/plugins/RecoTauPiZeroStripPlugin3.cc
 namespace 
 {
-  void setBendCorr(reco::RecoTauPiZero& strip, const TFormula& etaAssociationDistance, const TFormula& phiAssociationDistance) 
+  void setBendCorr(reco::RecoTauPiZero& piZero, 
+                   const reco::wrappedPFCandidateCollection& gammas, 
+                   const TFormula& etaAssociationDistance, const TFormula& phiAssociationDistance) 
   {
     double bendCorrEta = 0.;
     double bendCorrPhi = 0.;
     double energySum = 0.;
-    for ( auto const& gamma : strip.daughterPtrVector() ) 
+    for ( auto const& gamma : gammas ) 
     {
-      bendCorrEta += (gamma->energy() * etaAssociationDistance.Eval(gamma->pt()));
-      bendCorrPhi += (gamma->energy() * phiAssociationDistance.Eval(gamma->pt()));
-      energySum += gamma->energy();
+      bendCorrEta += (gamma.energy() * etaAssociationDistance.Eval(gamma.pt()));
+      bendCorrPhi += (gamma.energy() * phiAssociationDistance.Eval(gamma.pt()));
+      energySum += gamma.energy();
     }
     if ( energySum > 1.e-2 ) 
     {
       bendCorrEta /= energySum;
       bendCorrPhi /= energySum;
     }
-    //std::cout << "stripPt = " << strip.pt() << ": bendCorrEta = " << bendCorrEta << ", bendCorrPhi = " << bendCorrPhi << std::endl;
-    strip.setBendCorrEta(bendCorrEta);
-    strip.setBendCorrPhi(bendCorrPhi);
+    //std::cout << "piZero pT = " << piZero.pt() << ": bendCorrEta = " << bendCorrEta << ", bendCorrPhi = " << bendCorrPhi << std::endl;
+    piZero.setBendCorrEta(bendCorrEta);
+    piZero.setBendCorrPhi(bendCorrPhi);
   }
 } // namespace
 //-------------------------------------------------------------------------------
 
 reco::RecoTauPiZeroCollection 
-TallinnTauPiZeroBuilder::operator()(const std::vector<reco::PFCandidatePtr>& pfCands, const reco::Vertex::Point& primaryVertexPos)
+TallinnTauPiZeroBuilder::operator()(const reco::wrappedPFCandidateCollection& pfCands, const reco::Vertex::Point& primaryVertexPos)
 {
   int piZeroCharge = 0;
-  reco::Candidate::LorentzVector piZeroP4;
-  for ( auto const& pfCand : pfCands ) 
-  {
-    piZeroP4 += pfCand->p4();
-  }
+  reco::wrappedPFCandidateCollection gammas = getPFCands_of_type(pfCands, inputParticleIds_);
+  reco::Candidate::LorentzVector piZeroP4 = getSumP4(gammas);
   RecoTauPiZero piZero(piZeroCharge, piZeroP4, primaryVertexPos);
-  for ( auto const& pfCand : pfCands ) 
+  for ( auto const& gamma : gammas ) 
   {
-    piZero.addDaughter(reco::CandidatePtr(pfCand));
+    piZero.addDaughter(reco::CandidatePtr(gamma.pfCandPtr()));
   }
-  setBendCorr(piZero, *etaAssociationDistance_, *phiAssociationDistance_);
+  setBendCorr(piZero, gammas, *etaAssociationDistance_, *phiAssociationDistance_);
   reco::RecoTauPiZeroCollection piZeros;
   if ( piZero.pt() > minStripPt_ ) 
   {

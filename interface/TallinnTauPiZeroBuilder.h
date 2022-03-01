@@ -10,6 +10,8 @@
 #include "DataFormats/TauReco/interface/RecoTauPiZero.h"                // reco::RecoTauPiZero
 #include "DataFormats/TauReco/interface/RecoTauPiZeroFwd.h"             // reco::RecoTauPiZeroCollection
 
+#include "TallinnTauTag/RecoTau/interface/wrappedPFCandidate.h"         // reco::wrappedPFCandidate, reco::wrappedPFCandidateCollection
+
 #include "TFormula.h"
 
 namespace reco 
@@ -23,7 +25,7 @@ namespace reco
       ~TallinnTauPiZeroBuilder();
 
       reco::RecoTauPiZeroCollection 
-      operator()(const std::vector<reco::PFCandidatePtr>& pfCands, 
+      operator()(const reco::wrappedPFCandidateCollection& pfCands,
                  const reco::Vertex::Point& primaryVertexPos);
 
       static void 

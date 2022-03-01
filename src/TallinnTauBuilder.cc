@@ -1,5 +1,7 @@
 #include "TallinnTauTag/RecoTau/interface/TallinnTauBuilder.h"
 
+#include "TallinnTauTag/RecoTau/interface/wrappedPFCandidateAuxFunctions.h" // reco::tau::getPFCands_of_type(), reco::tau::getSumP4()
+
 #include <math.h> // round
 
 using namespace reco::tau;
@@ -17,62 +19,31 @@ TallinnTauBuilder::~TallinnTauBuilder()
 
 namespace
 {
-  std::vector<reco::PFCandidatePtr>
-  getPFCands_of_type(const std::vector<reco::PFCandidatePtr>& pfCands, const std::vector<int>& particleIds)
-  {
-    std::vector<reco::PFCandidatePtr> pfCands_of_type;
-    for ( auto const& pfCand : pfCands )
-    {
-      bool isPFCand_of_type = false;
-      for ( auto const& particleId : particleIds )
-      {
-        if ( pfCand->particleId() == particleId )
-        {
-          isPFCand_of_type = true;
-          break;
-        }
-      }
-      if ( isPFCand_of_type ) pfCands_of_type.push_back(pfCand);
-    }
-    return pfCands_of_type;
-  }
-
-  reco::Candidate::LorentzVector
-  getSumP4(const std::vector<reco::PFCandidatePtr>& pfCands)
-  {
-    reco::Candidate::LorentzVector sumP4;
-    for ( auto const& pfCand : pfCands )
-    {
-      sumP4 += pfCand->p4();
-    }
-    return sumP4;
-  }
-
   enum { kPt, kEt };
   double
-  getScalarSum(const std::vector<reco::PFCandidatePtr>& pfCands, int mode)
+  getScalarSum(const reco::wrappedPFCandidateCollection& pfCands, int mode)
   {
     double scalarSum = 0.;
     for ( auto const& pfCand : pfCands )
     {
-      if      ( mode == kPt ) scalarSum += pfCand->pt();
-      else if ( mode == kEt ) scalarSum += pfCand->et();
+      if      ( mode == kPt ) scalarSum += pfCand.pt();
+      else if ( mode == kEt ) scalarSum += pfCand.et();
       else assert(0);
     }
     return scalarSum;
   }
 
   reco::PFCandidatePtr
-  getLeadingPFCand(const std::vector<reco::PFCandidatePtr>& pfCands)
+  getLeadingPFCandPtr(const reco::wrappedPFCandidateCollection& pfCands)
   {
     reco::PFCandidatePtr leadingPFCand;
     double leadingPFCandPt = 0.;
     for ( auto const& pfCand : pfCands )
     {
-      if ( pfCand->pt() > leadingPFCandPt )
+      if ( pfCand.pt() > leadingPFCandPt )
       {
-        leadingPFCand = pfCand;
-        leadingPFCandPt = pfCand->pt();
+        leadingPFCand = pfCand.pfCandPtr();
+        leadingPFCandPt = pfCand.pt();
       }
     }
     return leadingPFCand;
@@ -114,12 +85,12 @@ namespace
   //-------------------------------------------------------------------------------
 
   std::vector<reco::CandidatePtr>
-  convert_to_CandidatePtrs(const std::vector<reco::PFCandidatePtr>& pfCands)
+  convert_to_CandidatePtrs(const reco::wrappedPFCandidateCollection& pfCands)
   {
     std::vector<reco::CandidatePtr> cands;
     for ( auto const& pfCand : pfCands )
     {
-      cands.push_back(reco::CandidatePtr(pfCand));
+      cands.push_back(reco::CandidatePtr(pfCand.pfCandPtr()));
     }
     return cands;
   }
@@ -127,17 +98,12 @@ namespace
 
 reco::PFTau
 TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
-                              const std::vector<std::pair<reco::PFCandidatePtr, double>>& signalPFCands_and_EnFracs,
-                              const std::vector<reco::PFCandidatePtr>& isolationPFCands, 
+                              const reco::wrappedPFCandidateCollection& signalPFCands,
+                              const reco::wrappedPFCandidateCollection& isolationPFCands, 
                               const reco::Vertex::Point& primaryVertexPos)
 {
   reco::PFTau pfTau;
   pfTau.setjetRef(edm::RefToBase<reco::Jet>(jetRef));
-  std::vector<reco::PFCandidatePtr> signalPFCands;
-  for ( auto const& signalPFCand_and_EnFrac : signalPFCands_and_EnFracs )
-  {
-    signalPFCands.push_back(signalPFCand_and_EnFrac.first);
-  }
   reco::Candidate::LorentzVector signalPFCandP4 = getSumP4(signalPFCands);
   pfTau.setP4(signalPFCandP4);
   double signalConeSize = signalConeSize_(pfTau);
@@ -146,12 +112,10 @@ TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
   pfTau.setsignalPiZeroCandidates(piZeros);
   double numTracks_float = 0;
   double charge_float = 0.;
-  for ( auto const& signalPFCand_and_EnFrac : signalPFCands_and_EnFracs )
+  for ( auto const& signalPFCand : signalPFCands )
   {
-    const reco::PFCandidatePtr& signalPFCand = signalPFCand_and_EnFrac.first;
-    double signalPFEnFrac = signalPFCand_and_EnFrac.second;
-    if ( signalPFCand->charge() != 0. ) numTracks_float += signalPFEnFrac;
-    charge_float += signalPFEnFrac*signalPFCand->charge();
+    if ( signalPFCand.charge() != 0. ) numTracks_float += signalPFCand.enFrac();
+    charge_float += signalPFCand.enFrac()*signalPFCand.charge();
   }
   int numTracks = round(numTracks_float);
   reco::PFTau::hadronicDecayMode decayMode = reco::PFTau::kNull;
@@ -167,12 +131,12 @@ TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
   pfTau.setCharge(charge);
   int pdgId = ( charge_float >= 0. ) ? -15 : +15; 
   pfTau.setPdgId(pdgId);
-  std::vector<reco::PFCandidatePtr> signalPFChargedHadrCands = getPFCands_of_type(signalPFCands, chargedHadrParticleIds_);
-  std::vector<reco::PFCandidatePtr> isolationPFChargedHadrCands = getPFCands_of_type(isolationPFCands, chargedHadrParticleIds_);
-  std::vector<reco::PFCandidatePtr> signalPFNeutralHadrCands = getPFCands_of_type(signalPFCands, { reco::PFCandidate::h0 });
-  std::vector<reco::PFCandidatePtr> isolationPFNeutralHadrCands = getPFCands_of_type(isolationPFCands, { reco::PFCandidate::h0 });
-  std::vector<reco::PFCandidatePtr> signalPFGammaCands = getPFCands_of_type(signalPFCands, { reco::PFCandidate::gamma });
-  std::vector<reco::PFCandidatePtr> isolationPFGammaCands = getPFCands_of_type(isolationPFCands, { reco::PFCandidate::gamma });
+  reco::wrappedPFCandidateCollection signalPFChargedHadrCands = getPFCands_of_type(signalPFCands, chargedHadrParticleIds_);
+  reco::wrappedPFCandidateCollection isolationPFChargedHadrCands = getPFCands_of_type(isolationPFCands, chargedHadrParticleIds_);
+  reco::wrappedPFCandidateCollection signalPFNeutralHadrCands = getPFCands_of_type(signalPFCands, { reco::PFCandidate::h0 });
+  reco::wrappedPFCandidateCollection isolationPFNeutralHadrCands = getPFCands_of_type(isolationPFCands, { reco::PFCandidate::h0 });
+  reco::wrappedPFCandidateCollection signalPFGammaCands = getPFCands_of_type(signalPFCands, { reco::PFCandidate::gamma });
+  reco::wrappedPFCandidateCollection isolationPFGammaCands = getPFCands_of_type(isolationPFCands, { reco::PFCandidate::gamma });
   double isolationPFChargedHadrCandsPtSum = getScalarSum(isolationPFChargedHadrCands, kPt);
   double isolationPFGammaCandsEtSum = getScalarSum(isolationPFGammaCands, kEt);
   pfTau.setisolationPFChargedHadrCandsPtSum(isolationPFChargedHadrCandsPtSum);
@@ -181,12 +145,9 @@ TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
   double signalPFCandsPtSum = getScalarSum(signalPFCands, kPt);
   double emFraction = ( signalPFGammaCandsPtSum > 0. && signalPFCandsPtSum > 0. ) ? signalPFGammaCandsPtSum/signalPFCandsPtSum : 0.;
   pfTau.setemFraction(emFraction);
-  reco::PFCandidatePtr leadPFCand = getLeadingPFCand(signalPFCands);
-  pfTau.setleadCand(leadPFCand);
-  reco::PFCandidatePtr leadPFChargedHadrCand = getLeadingPFCand(signalPFChargedHadrCands);
-  pfTau.setleadChargedHadrCand(leadPFChargedHadrCand);
-  reco::PFCandidatePtr leadPFGammaCand = getLeadingPFCand(signalPFGammaCands);
-  pfTau.setleadNeutralCand(leadPFGammaCand);
+  pfTau.setleadCand(getLeadingPFCandPtr(signalPFCands));
+  pfTau.setleadChargedHadrCand(getLeadingPFCandPtr(signalPFChargedHadrCands));
+  pfTau.setleadNeutralCand(getLeadingPFCandPtr(signalPFGammaCands));
   pfTau.setsignalCands(convert_to_CandidatePtrs(signalPFCands));
   pfTau.setsignalChargedHadrCands(convert_to_CandidatePtrs(signalPFChargedHadrCands));
   pfTau.setsignalNeutrHadrCands(convert_to_CandidatePtrs(signalPFNeutralHadrCands));

@@ -13,7 +13,7 @@ namespace reco
     class TallinnTauCache 
     {
      public:
-      TallinnTauCache(const edm::VParameterSet& cfg_graphs);
+      TallinnTauCache(const edm::VParameterSet& cfg_graphs, int verbosity = 0);
       ~TallinnTauCache();
 
       // A Session allows concurrent calls to Run(), though a Session must
@@ -30,6 +30,8 @@ namespace reco
      private:
       std::map<std::string, std::shared_ptr<tensorflow::GraphDef>> graphs_;
       std::map<std::string, tensorflow::Session*> sessions_;
+
+      int verbosity_;
     };
   }
 }

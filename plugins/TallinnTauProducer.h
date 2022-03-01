@@ -15,7 +15,7 @@
 
 #include "DataFormats/JetReco/interface/PFJet.h"                        // reco::PFJet, reco::PFJetRef
 #include "DataFormats/JetReco/interface/PFJetCollection.h"              // reco::PFJetCollection
-#include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"    // reco::PFCandidate
+#include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"    // reco::PFCandidate, reco::PFCandidatePtr
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidateFwd.h" // reco::PFCandidateCollection
 #include "DataFormats/VertexReco/interface/Vertex.h"                    // reco::Vertex::Point
 
@@ -30,6 +30,27 @@ namespace reco
 {
   namespace tau 
   {
+    class PFJetConstituent_order
+    {
+     public:
+      PFJetConstituent_order(const std::vector<int>& particleIds)
+        : particleIds_(particleIds)
+      {}
+      ~PFJetConstituent_order() {}
+      bool 
+      operator()(const reco::PFCandidatePtr& pfCand1, const reco::PFCandidatePtr& pfCand2) const
+      {
+        for ( auto particleId : particleIds_ )
+        {
+          if ( pfCand1->particleId() == particleId && pfCand2->particleId() != particleId ) return true;
+          if ( pfCand2->particleId() == particleId && pfCand1->particleId() != particleId ) return false;
+        }
+        return pfCand1->pt() > pfCand2->pt();
+      }
+     private:
+      std::vector<int> particleIds_;
+    };
+
     class TallinnTauProducer : public edm::stream::EDProducer<edm::GlobalCache<TallinnTauCache>>
     {
      public:
@@ -73,6 +94,8 @@ namespace reco
       std::vector<std::string> pfCandInputs_;
       mutable std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFCandidate>>> pfCandInputExtractors_;
       size_t maxNumPFCands_;
+
+      PFJetConstituent_order jetConstituent_order_;
 
       const TallinnTauCache* dnn_;
       std::unique_ptr<tensorflow::Tensor> dnnInputs_;

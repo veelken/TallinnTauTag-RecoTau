@@ -12,6 +12,7 @@
 #include "DataFormats/VertexReco/interface/Vertex.h"                 // reco::Vertex::Point
 
 #include "TallinnTauTag/RecoTau/interface/TallinnTauPiZeroBuilder.h" // reco::tau::TallinnTauPiZeroBuilder
+#include "TallinnTauTag/RecoTau/interface/wrappedPFCandidate.h"      // reco::wrappedPFCandidate, reco::wrappedPFCandidateCollection
 
 #include <vector>  // std::vector
 #include <utility> // std::pair
@@ -28,8 +29,8 @@ namespace reco
 
       reco::PFTau
       operator()(const reco::PFJetRef& jetRef,
-                 const std::vector<std::pair<reco::PFCandidatePtr, double>>& signalPFCands_and_EnFracs,
-                 const std::vector<reco::PFCandidatePtr>& isolationPFCands, 
+                 const reco::wrappedPFCandidateCollection& signalPFCands,
+                 const reco::wrappedPFCandidateCollection& isolationPFCands,
                  const reco::Vertex::Point& primaryVertexPos);
 
       static void 
