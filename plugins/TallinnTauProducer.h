@@ -117,6 +117,7 @@ namespace reco
       bool saveInputs_;
       std::string jsonFileName_;
       std::ofstream* jsonFile_;
+      bool jsonFile_isFirstEvent_;
 
       int verbosity_;
     };

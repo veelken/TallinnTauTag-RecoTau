@@ -43,6 +43,7 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
   , saveInputs_(cfg.getParameter<bool>("saveInputs"))
   , jsonFileName_(cfg.getParameter<std::string>("jsonFileName"))
   , jsonFile_(nullptr)
+  , jsonFile_isFirstEvent_(true)
   , verbosity_(cfg.getParameter<int>("verbosity"))
 {
   std::cout << "<TallinnTauProducer::TallinnTauProducer (moduleLabel = " << moduleLabel_ << ")>:" << std::endl;
@@ -66,12 +67,6 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
     throw cms::Exception("TallinnTauProducer")
       << "Size of DNN input layer = " << dnnInputLayer.dim(1).size() << " does not match number of DNN input variables = " << num_dnnInputs_ << " !!";
 
-  if ( saveInputs_ ) 
-  {
-    jsonFile_ = new std::ofstream(jsonFileName_.data());
-    (*jsonFile_) << "{";
-  }
-
   produces<reco::PFTauCollection>();
   produces<reco::PFCandidateCollection>("splittedPFCands");
 }
@@ -80,6 +75,8 @@ TallinnTauProducer::~TallinnTauProducer()
 {
   if ( saveInputs_ )
   {
+    (*jsonFile_) << std::endl;
+    (*jsonFile_) << "    }" << std::endl;
     (*jsonFile_) << "}";
     delete jsonFile_;
   }
@@ -370,25 +367,41 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     {
       if ( idxPFJet == 0 )
       {
+        if ( jsonFile_isFirstEvent_ )
+        {
+          jsonFile_ = new std::ofstream(jsonFileName_.data());
+          (*jsonFile_) << "{" << std::endl;
+          jsonFile_isFirstEvent_ = false;
+        }
+        else
+        {          
+          (*jsonFile_) << std::endl;
+          (*jsonFile_) << "    }," << std::endl;
+        }
         const edm::EventID& evtId = evt.id();
         std::ostringstream key_evt;
         key_evt << evtId.run() << ":" << evtId.luminosityBlock() << ":" << evtId.event();
-        (*jsonFile_) << "'" << key_evt.str() << "': {";
-      }
+        (*jsonFile_) << "    " << "\"" << key_evt.str() << "\": {" << std::endl;
+      } 
       std::string key_jet = getHash_jet(pfJetRef->p4());
-      (*jsonFile_) << "'" << key_jet << "':{";
+      if ( idxPFJet != 0 )
+      {
+        (*jsonFile_) << "," << std::endl;
+      }
+      (*jsonFile_) << "        " << "\"" << key_jet << "\": {" << std::endl;
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_dnnOutputs_); ++idxPFJetConstituent )
       {
         const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
         double signalPFEnFrac = dnnOutputs[0].flat<float>()(idxPFJetConstituent);
         std::string key_pfCand = getHash_pfCand(pfJetConstituent.p4(), pfJetConstituent.particleId(), pfJetConstituent.charge());
-        (*jsonFile_) << "'" << key_pfCand << "':" << signalPFEnFrac << ",";
+        if ( idxPFJetConstituent != 0 )
+        {
+          (*jsonFile_) << "," << std::endl;
+        }
+        (*jsonFile_) << "            " << "\"" << key_pfCand << "\":" << signalPFEnFrac;
       }
-      (*jsonFile_) << "},";
-      if ( idxPFJet == (numPFJets - 1) )
-      {
-        (*jsonFile_) << "},";
-      }
+      (*jsonFile_) << std::endl;
+      (*jsonFile_) << "        }";
     }
 
     reco::PFTau pfTau = tauBuilder_(pfJetRef, signalPFCands, isolationPFCands, primaryVertexPos);

@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
+import functools
 import json
 import os
 import matplotlib.pyplot as plt
 plt.style.use('seaborn-whitegrid')
 
 inputFilePath1 = "/home/veelken/gnnTauReco/CMSSW_12_1_0/src/TallinnTauTag/RecoTau/test/"
-jsonFileName1 = "TallinnTauProducer_2022Feb18.json"
+jsonFileName1 = "TallinnTauProducer_forLaurits_v2.json"
 label1 = "Training"
 
 inputFilePath2 = "/home/veelken/gnnTauReco/CMSSW_12_1_0/src/TallinnTauTag/RecoTau/test/"
-jsonFileName2 = "TallinnTauProducer_2022Feb18.json"
+jsonFileName2 = "TallinnTauProducer_forLaurits_v2.json"
 label2 = "EDProducer"
 
 ignore_missing_keys = True
@@ -30,7 +31,7 @@ def split_keys(keys1, keys2):
     keys_common = []
     keys_only1 = []
     keys_only2 = []
-    all_keys = {}
+    all_keys = set()
     for key in keys1:
         if not key in all_keys:
             all_keys.add(key)
@@ -50,18 +51,18 @@ def event_order(event1, event2):
     items1 = event1.split(":")
     items2 = event2.split(":")
     for idx in range(3):
-        if int(items1[idx]) < int(items[idx]):
+        if int(items1[idx]) < int(items2[idx]):
             return True
-        if int(items1[idx]) > int(items[idx]):
+        if int(items1[idx]) > int(items2[idx]):
             return False
     return True
 
-( events_common, events_only1, events_only2 ) = split_keys(dict1, dict2)
+( events_common, events_only1, events_only2 ) = split_keys(dict1.keys(), dict2.keys())
 all_events = []
 all_events.extend(events_common)
 all_events.extend(events_only1)
 all_events.extend(events_only2)
-all_events.sort(key = event_order)
+all_events.sort(key = functools.cmp_to_key(event_order))
 
 # compare dictionaries and print differences to stdout
 for event in all_events:
@@ -127,7 +128,7 @@ for event in all_events:
             value2 = dict2[event][jet][pfCand]
             x.append(value1)
             y.append(value2)       
-plt.scatter(x, y, marker='o')
+plt.scatter(x, y, marker = 'o', s = 5)
 plt.xlabel(label1)
 plt.ylabel(label2)
 plt.show()
