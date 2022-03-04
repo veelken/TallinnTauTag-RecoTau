@@ -112,6 +112,10 @@ process.out = cms.OutputModule("PoolOutputModule",
     outputCommands = cms.untracked.vstring(
         ##"keep *_*_*_*"
         "drop *_*_*_*",
+        "keep *_tauGenJets_*_*",
+        "keep *_tauGenJetsSelectorAllHadrons_*_*",
+        "keep *_ak4PFJets_*_*",
+        "keep *_particleFlow_*_*",
         "keep *_patTaus_*_*",
         "keep *_patTallinnTaus_*_*"
     )
