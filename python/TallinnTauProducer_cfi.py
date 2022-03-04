@@ -17,13 +17,14 @@ tallinnTaus = cms.EDProducer("TallinnTauProducer",
     minJetPt = PFRecoTauPFJetInputs.minJetPt,
     maxJetAbsEta = PFRecoTauPFJetInputs.maxJetAbsEta,
     pfCandSrc = cms.InputTag("particleFlow"),
-    jetInputs = cms.vstring("numPFCands", "pt", "eta", "phi", "mass"),
+    ##jetInputs = cms.vstring("numPFCands", "pt", "eta", "phi", "mass"),
+    jetInputs = cms.vstring("numSelectedPFCands", "pfCandSum_pt", "pfCandSum_eta", "pfCandSum_phi", "pfCandSum_mass"),
     pfCandInputs = cms.vstring("pt", "eta", "phi", "particleId", "charge", "dR_jet", "dEta_jet", "dPhi_jet", "dz"),
     maxNumPFCands = cms.uint32(20),
     jetConstituent_order = cms.vint32(1, 2, 4, 3, 5), # h, e, gamma, mu, h0
     graphs = cms.VPSet(
         cms.PSet(
-            inputFile = cms.string("TallinnTauTag/RecoTau/data/dnn_2022Mar01_Laurits.pb"),
+            inputFile = cms.string("TallinnTauTag/RecoTau/data/dnn_2022Mar03_Torben.pb"),
             graphName = cms.string("")
         )
     ),

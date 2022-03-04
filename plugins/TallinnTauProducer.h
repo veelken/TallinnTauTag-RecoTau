@@ -70,9 +70,10 @@ namespace reco
 
      private:
       double 
-      compJetInput(const reco::PFJet& pfJet,
-                   const std::string& inputVariable,
-                   const reco::Track* leadTrack) const;
+      compJetInput(const reco::PFJet& pfJet, 
+                   const std::string& inputVariable, 
+                   size_t numPFCands, const reco::Candidate::LorentzVector& pfCandSumP4, const reco::Track* leadTrack) const;
+
       double 
       compPFCandInput(const reco::PFCandidate& pfCand, 
                       const std::string& inputVariable, 

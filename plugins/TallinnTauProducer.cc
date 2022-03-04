@@ -76,24 +76,30 @@ TallinnTauProducer::~TallinnTauProducer()
   if ( saveInputs_ )
   {
     (*jsonFile_) << std::endl;
-    (*jsonFile_) << "    }" << std::endl;
     (*jsonFile_) << "}";
     delete jsonFile_;
   }
 }
 
 double 
-TallinnTauProducer::compJetInput(const reco::PFJet& pfJet, const std::string& inputVariable, const reco::Track* leadTrack) const
+TallinnTauProducer::compJetInput(const reco::PFJet& pfJet, 
+                                 const std::string& inputVariable, 
+                                 size_t numPFCands, const reco::Candidate::LorentzVector& pfCandSumP4, const reco::Track* leadTrack) const
 {
   //std::cout << "<TallinnTauProducer::compJetInput>:" << std::endl;
   //std::cout << " jet: pT = " << pfJet.pt() << ", eta = " << pfJet.eta() << ", phi = " << pfJet.phi() << std::endl;
   //std::cout << " inputVariable = '" << inputVariable << "'" << std::endl;
   double retVal = 0.;
-  if      ( inputVariable == "dR_leadTrack"      ) retVal = deltaR(pfJet.p4(), leadTrack->momentum());
-  else if ( inputVariable == "dEta_leadTrack"    ) retVal = std::fabs(pfJet.eta() - leadTrack->eta());
-  else if ( inputVariable == "dPhi_leadTrack"    ) retVal = deltaPhi(pfJet.phi(), leadTrack->phi());
-  else if ( inputVariable == "numPFCands"        ) retVal = pfJet.getPFConstituents().size();
-  else if ( inputVariable == "leadTrackPt/jetPt" ) retVal = leadTrack->pt()/pfJet.pt();
+  if      ( inputVariable == "pfCandSum_pt"        ) retVal = pfCandSumP4.pt();
+  else if ( inputVariable == "pfCandSum_eta"       ) retVal = pfCandSumP4.eta();
+  else if ( inputVariable == "pfCandSum_phi"       ) retVal = pfCandSumP4.phi();
+  else if ( inputVariable == "pfCandSum_mass"      ) retVal = pfCandSumP4.mass();
+  else if ( inputVariable == "dR_leadTrack"        ) retVal = deltaR(pfJet.p4(), leadTrack->momentum());
+  else if ( inputVariable == "dEta_leadTrack"      ) retVal = std::fabs(pfJet.eta() - leadTrack->eta());
+  else if ( inputVariable == "dPhi_leadTrack"      ) retVal = deltaPhi(pfJet.phi(), leadTrack->phi());
+  else if ( inputVariable == "numPFCands"          ) retVal = pfJet.getPFConstituents().size();
+  else if ( inputVariable == "numSelectedPFCands"  ) retVal = numPFCands;
+  else if ( inputVariable == "leadTrack_pt/jet_pt" ) retVal = leadTrack->pt()/pfJet.pt();
   else
   {
     auto jetInputExtractor = jetInputExtractors_.find(inputVariable);
@@ -180,6 +186,23 @@ namespace
     clonedPFCand.setP4(pfEnFrac*pfCand.p4());
     return clonedPFCand;
   }
+
+  std::string
+  format_vdouble(const std::vector<double>& values)
+  {
+    std::ostringstream output;
+    output << "[ ";
+    for ( size_t idxValue = 0; idxValue < values.size(); ++idxValue )
+    {
+      if ( idxValue != 0 )
+      {
+        output << ", ";
+      }
+      output << values[idxValue];
+    }
+    output << " ]";
+    return output.str();
+  }
 }
 
 void 
@@ -191,7 +214,7 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
   std::unique_ptr<reco::PFCandidateCollection> splittedPFCands = std::make_unique<reco::PFCandidateCollection>();
 
   reco::PFCandidateRefProd splittedPFCandsRefProd = evt.getRefBeforePut<reco::PFCandidateCollection>("splittedPFCands");
-  std::cout << "splittedPFCands: productId = " << splittedPFCandsRefProd.id() << std::endl;
+  //std::cout << "splittedPFCands: productId = " << splittedPFCandsRefProd.id() << std::endl;
 
   edm::Handle<reco::PFJetCollection> pfJets;
   evt.getByToken(pfJetToken_, pfJets);
@@ -263,12 +286,18 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
                 << " (#constituents = " << selPFJetConstituents.size() << ")" << std::endl;
     }
 
+    reco::Candidate::LorentzVector pfCandSumP4;
+    for ( auto const& pfJetConstituent : selPFJetConstituents )
+    {
+      pfCandSumP4 += pfJetConstituent->p4();
+    }
+
     // CV: compute and set DNN input variables
     dnnInputs_->flat<float>().setZero();
     size_t idx_dnnInput = 0;
     for ( auto const& jetInput : jetInputs_ )
     {
-      set_dnnInput(*dnnInputs_, idx_dnnInput, compJetInput(*pfJetRef, jetInput, leadTrack));
+      set_dnnInput(*dnnInputs_, idx_dnnInput, compJetInput(*pfJetRef, jetInput, selPFJetConstituents.size(), pfCandSumP4, leadTrack));
       ++idx_dnnInput;
     }
     for ( auto const& pfJetConstituent : selPFJetConstituents )
@@ -365,43 +394,54 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
 
     if ( saveInputs_ ) 
     {
-      if ( idxPFJet == 0 )
+      if ( jsonFile_isFirstEvent_ )
       {
-        if ( jsonFile_isFirstEvent_ )
-        {
-          jsonFile_ = new std::ofstream(jsonFileName_.data());
-          (*jsonFile_) << "{" << std::endl;
-          jsonFile_isFirstEvent_ = false;
-        }
-        else
-        {          
-          (*jsonFile_) << std::endl;
-          (*jsonFile_) << "    }," << std::endl;
-        }
-        const edm::EventID& evtId = evt.id();
-        std::ostringstream key_evt;
-        key_evt << evtId.run() << ":" << evtId.luminosityBlock() << ":" << evtId.event();
-        (*jsonFile_) << "    " << "\"" << key_evt.str() << "\": {" << std::endl;
+        jsonFile_ = new std::ofstream(jsonFileName_.data());
+        (*jsonFile_) << "{" << std::endl;
+        jsonFile_isFirstEvent_ = false;
       } 
-      std::string key_jet = getHash_jet(pfJetRef->p4());
-      if ( idxPFJet != 0 )
+      else
       {
         (*jsonFile_) << "," << std::endl;
       }
-      (*jsonFile_) << "        " << "\"" << key_jet << "\": {" << std::endl;
+      const edm::EventID& evtId = evt.id();
+      std::ostringstream key_evt;
+      key_evt << evtId.run() << ":" << evtId.luminosityBlock() << ":" << evtId.event();
+      //std::string key_jet = getHash_jet(pfJetRef->p4());
+      std::string key_jet = getHash_jet(pfCandSumP4); // CV: ONLY FOR TESTING !!
+      (*jsonFile_) << "    " << "\"" << key_evt.str() << "|" << key_jet << "\": {" << std::endl;
+      std::vector<double> dnnInputs_jet;
+      for ( auto const& jetInput : jetInputs_ )
+      {
+        dnnInputs_jet.push_back(compJetInput(*pfJetRef, jetInput, selPFJetConstituents.size(), pfCandSumP4, leadTrack));
+      }
+      (*jsonFile_) << "        " << "\"inputs\": " << format_vdouble(dnnInputs_jet);
+      if ( selPFJetConstituents.size() > 0 )
+      {
+        (*jsonFile_) << ",";
+        (*jsonFile_) << std::endl;
+      }
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_dnnOutputs_); ++idxPFJetConstituent )
       {
         const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
-        double signalPFEnFrac = dnnOutputs[0].flat<float>()(idxPFJetConstituent);
+        std::vector<double> dnnInputs_pfCand;
+        for ( auto const& inputVariable : pfCandInputs_ )
+        {      
+          dnnInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack));
+        }
+        double dnnOutput = dnnOutputs[0].flat<float>()(idxPFJetConstituent);
         std::string key_pfCand = getHash_pfCand(pfJetConstituent.p4(), pfJetConstituent.particleId(), pfJetConstituent.charge());
         if ( idxPFJetConstituent != 0 )
         {
           (*jsonFile_) << "," << std::endl;
         }
-        (*jsonFile_) << "            " << "\"" << key_pfCand << "\":" << signalPFEnFrac;
+        (*jsonFile_) << "        " << "\"" << key_pfCand << "\": {" << std::endl;
+        (*jsonFile_) << "            " << "\"inputs\": " << format_vdouble(dnnInputs_pfCand) << "," << std::endl;
+        (*jsonFile_) << "            " << "\"output\": " << dnnOutput << std::endl;
+        (*jsonFile_) << "        }";
       }
       (*jsonFile_) << std::endl;
-      (*jsonFile_) << "        }";
+      (*jsonFile_) << "    }";
     }
 
     reco::PFTau pfTau = tauBuilder_(pfJetRef, signalPFCands, isolationPFCands, primaryVertexPos);

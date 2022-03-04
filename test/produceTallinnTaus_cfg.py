@@ -11,13 +11,14 @@ process.load('Configuration.StandardSequences.Reconstruction_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 process.maxEvents = cms.untracked.PSet(
-    #input = cms.untracked.int32(-1)
+    ##input = cms.untracked.int32(-1)
     input = cms.untracked.int32(10)
 )
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-        'file:/hdfs/local/tolange/PFMatching/singleTau_mini_wPU.root'
+        ##'file:/hdfs/local/tolange/PFMatching/singleTau_mini_wPU.root'
+        'file:/hdfs/local/tolange/step3/0/step3_htt.root'
     )
 )
 
@@ -109,7 +110,10 @@ process.p = cms.Path(process.productionSequence)
 process.out = cms.OutputModule("PoolOutputModule",
     fileName = cms.untracked.string('produceTallinnTaus.root'),
     outputCommands = cms.untracked.vstring(
-        "keep *_*_*_*"
+        ##"keep *_*_*_*"
+        "drop *_*_*_*",
+        "keep *_patTaus_*_*",
+        "keep *_patTallinnTaus_*_*"
     )
 )
 process.q = cms.EndPath(process.out)

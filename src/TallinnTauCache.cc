@@ -16,6 +16,7 @@ TallinnTauCache::TallinnTauCache(const edm::VParameterSet& cfg_graphs, int verbo
         << "Invalid configuration parameters: graph '" << graphName << "' defined more than once !!";
     
     std::string inputFileName_full = edm::FileInPath(inputFileName).fullPath();
+    std::cout << "<TallinnTauCache::TallinnTauCache>: loading graph = '" << graphName << "' from input file = '" << inputFileName_full << "'." << std::endl;
     tensorflow::SessionOptions options;
     tensorflow::setThreading(options, 1);
     graphs_[graphName].reset(tensorflow::loadGraphDef(inputFileName_full));
