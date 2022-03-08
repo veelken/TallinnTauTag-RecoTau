@@ -6,10 +6,10 @@
 <use   name="FWCore/Framework"/>
 <use   name="FWCore/ParameterSet"/>
 <use   name="FWCore/Utilities"/>
+<use   name="PhysicsTools/TensorFlow"/>
 <use   name="RecoTauTag/RecoTau"/>
 <use   name="TallinnTauTag/RecoTau"/>
 <use   name="root"/>
-<!--Flags CXXFLAGS="-ggdb3 -Og" /-->
 <export>
   <lib   name="1"/>
 </export>

@@ -7,17 +7,16 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn-whitegrid')
 
 inputFilePath1 = "/home/veelken/gnnTauReco/CMSSW_12_1_0/src/TallinnTauTag/RecoTau/test/"
-##jsonFileName1 = "Training_2022Mar04.json" # made using DNN in dnn_2022Mar03_Torben.pb
-jsonFileName1 = "TallinnTauProducer_forLaurits_v6.json"
+jsonFileName1 = "Training_2022Mar07.json" # made using DNN in dnn_2022Mar07_Laurits.pb
 label1 = "Training"
 
 inputFilePath2 = "/home/veelken/gnnTauReco/CMSSW_12_1_0/src/TallinnTauTag/RecoTau/test/"
-jsonFileName2 = "TallinnTauProducer_forLaurits_v6.json"
+jsonFileName2 = "TallinnTauProducer_forLaurits_v8.json"
 label2 = "EDProducer"
 
 ignore_missing_keys = True
 
-diff_threshold = 1.e-2
+diff_threshold = 1.e-4
 
 # load dictionaries from JSON files
 jsonFile1 = open(os.path.join(inputFilePath1, jsonFileName1))
@@ -40,7 +39,7 @@ def split_keys(keys1, keys2):
         if not key in all_keys:
             all_keys.add(key)
     for key in all_keys:
-        if key in [ "inputs", "output" ]:
+        if key in [ "inputs", "full_input", "output" ]:
             continue
         if key in keys1 and key in keys2:
             keys_common.append(key)
@@ -95,16 +94,34 @@ if not ignore_missing_keys:
         print(" combination of event & jet only in %s." % label2)
 for event_and_jet in events_and_jets_common:
     ( event, jet ) = separate_event_and_jet(event_and_jet)
+    isFirst = True
+    #----------------------------------------------------------------------------
+    # CV: compare "full" DNN input vectors (only needed for low-level debugging)
+    full_input1 = dict1[event_and_jet]["full_input"]
+    full_input2 = dict2[event_and_jet]["full_input"]
+    if len(full_input1) != len(full_input2):
+        raise ValueError("Mismatch in length of input vectors (1 = %i, 2 = %i) !!" % (len(full_input1), len(full_input2)))
+    num_full_input = len(full_input1)
+    for idx_full_input in range(num_full_input):
+        input1 = full_input1[idx_full_input]
+        input2 = full_input2[idx_full_input]
+        diff = abs(input1 - input2)
+        mean = 0.5*(abs(input1) + abs(input2))
+        if diff > diff_threshold:
+            if isFirst:        
+                print("Differences in event %s, jet = '%s':" % (event, jet))
+                isFirst = False
+            print(" full_input #%i: 1 = %1.6f, 2 = %1.6f" % (idx_full_input, input1, input2))
+    #----------------------------------------------------------------------------
     pfCands_that_differ = []
     ( pfCands_common, pfCands_only1, pfCands_only2 ) = split_keys(dict1[event_and_jet], dict2[event_and_jet])
     for pfCand in pfCands_common:
         value1 = dict1[event_and_jet][pfCand]["output"]
         value2 = dict2[event_and_jet][pfCand]["output"]
-        diff = value1 - value2
+        diff = abs(value1 - value2)
         mean = 0.5*(abs(value1) + abs(value2))
         if diff > diff_threshold:
-            pfCands_that_differ.append(pfCand)
-    isFirst = True
+            pfCands_that_differ.append(pfCand)    
     if len(pfCands_that_differ):
         if isFirst:        
             print("Differences in event %s, jet = '%s':" % (event, jet))

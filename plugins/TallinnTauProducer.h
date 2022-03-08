@@ -20,7 +20,7 @@
 #include "DataFormats/VertexReco/interface/Vertex.h"                    // reco::Vertex::Point
 
 #include "TallinnTauTag/RecoTau/interface/TallinnTauBuilder.h"          // reco::tau::TallinnTauBuilder
-#include "TallinnTauTag/RecoTau/interface/TallinnTauCache.h"            // reco::tau::TallinnTauCache
+#include "TallinnTauTag/RecoTau/interface/TFGraphCache.h"               // reco::tau::TFGraphCache
 
 #include <fstream>                                                      // std::ofstream
 #include <string>                                                       // std::string
@@ -51,20 +51,20 @@ namespace reco
       std::vector<int> particleIds_;
     };
 
-    class TallinnTauProducer : public edm::stream::EDProducer<edm::GlobalCache<TallinnTauCache>>
+    class TallinnTauProducer : public edm::stream::EDProducer<edm::GlobalCache<TFGraphCache>>
     {
      public:
-      explicit TallinnTauProducer(const edm::ParameterSet& cfg, const TallinnTauCache* dnn);
+      explicit TallinnTauProducer(const edm::ParameterSet& cfg, const TFGraphCache* tfGraph);
       ~TallinnTauProducer() override;
 
       void 
       produce(edm::Event& evt, const edm::EventSetup& es) override;
 
-      static std::unique_ptr<TallinnTauCache> 
+      static std::unique_ptr<TFGraphCache> 
       initializeGlobalCache(const edm::ParameterSet& cfg);
 
       static void
-      globalEndJob(const TallinnTauCache* dnn);
+      globalEndJob(const TFGraphCache* tfGraph);
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions); 
 
@@ -97,10 +97,11 @@ namespace reco
       size_t maxNumPFCands_;
 
       PFJetConstituent_order jetConstituent_order_;
-
-      const TallinnTauCache* dnn_;
+       
+      tensorflow::Session* tfSession_;
       std::unique_ptr<tensorflow::Tensor> dnnInputs_;
       size_t num_dnnInputs_;
+      std::vector<tensorflow::Tensor> dnnOutputs_;
       size_t num_dnnOutputs_;
       std::string dnnInputLayerName_;
       std::string dnnOutputLayerName_;

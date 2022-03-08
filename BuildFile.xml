@@ -1,7 +1,7 @@
 <use   name="CommonTools/Utils"/>
 <use   name="DataFormats/JetReco"/>
 <use   name="DataFormats/ParticleFlowCandidate"/>
-https://cmssdt.cern.ch/lxr/source/DataFormats/VertexReco/interface/Vertex.h
+<use   name="DataFormats/VertexReco"/>
 <use   name="FWCore/Framework"/>
 <use   name="FWCore/MessageLogger"/>
 <use   name="FWCore/ParameterSet"/>
@@ -10,7 +10,6 @@ https://cmssdt.cern.ch/lxr/source/DataFormats/VertexReco/interface/Vertex.h
 <use   name="RecoTauTag/RecoTau"/>
 <use   name="openssl"/>
 <use   name="root"/>
-<!--Flags CXXFLAGS="-ggdb3 -Og" /-->
 <export>
   <lib   name="1"/>
 </export>

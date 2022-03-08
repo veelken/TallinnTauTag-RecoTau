@@ -25,7 +25,7 @@ using namespace reco::tau;
 
 typedef std::vector<std::string> vstring;
 
-TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TallinnTauCache* dnn) 
+TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGraphCache* tfGraph) 
   : moduleLabel_(cfg.getParameter<std::string>("@module_label"))
   , minJetPt_(cfg.getParameter<double>("minJetPt"))
   , maxJetAbsEta_(cfg.getParameter<double>("maxJetAbsEta"))
@@ -33,7 +33,7 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
   , pfCandInputs_(cfg.getParameter<vstring>("pfCandInputs"))
   , maxNumPFCands_(cfg.getParameter<unsigned>("maxNumPFCands"))
   , jetConstituent_order_(cfg.getParameter<std::vector<int>>("jetConstituent_order"))
-  , dnn_(dnn)
+  , tfSession_(tensorflow::createSession(&tfGraph->getGraph()))
   , signalMinPFEnFrac_(cfg.getParameter<double>("signalMinPFEnFrac"))
   , isolationMinPFEnFrac_(cfg.getParameter<double>("isolationMinPFEnFrac"))
   , isolationConeSize_(cfg.getParameter<double>("isolationConeSize"))
@@ -55,14 +55,16 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const Talli
   pfCandToken_ = consumes<reco::PFCandidateCollection>(pfCandSrc_);
 
   num_dnnInputs_ = jetInputs_.size() + pfCandInputs_.size()*maxNumPFCands_;
-  dnnInputs_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ 1, (long)num_dnnInputs_ });
+  dnnInputs_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)num_dnnInputs_ });
   dnnInputs_->flat<float>().setZero();
 
   num_dnnOutputs_ = maxNumPFCands_;
 
-  dnnInputLayerName_ = dnn_->getGraph().node(0).name();
-  dnnOutputLayerName_ = dnn_->getGraph().node(dnn_->getGraph().node_size() - 1).name();
-  const auto& dnnInputLayer = dnn_->getGraph().node(0).attr().at("shape").shape();
+  dnnInputLayerName_ = tfGraph->getInputLayerName();
+  std::cout << "dnnInputLayerName = " << dnnInputLayerName_ << std::endl;
+  dnnOutputLayerName_ = tfGraph->getOutputLayerName();
+  std::cout << "dnnOutputLayerName = " << dnnOutputLayerName_ << std::endl;
+  const auto& dnnInputLayer = tfGraph->getGraph().node(0).attr().at("shape").shape();
   if ( (size_t)dnnInputLayer.dim(1).size() != num_dnnInputs_ )
     throw cms::Exception("TallinnTauProducer")
       << "Size of DNN input layer = " << dnnInputLayer.dim(1).size() << " does not match number of DNN input variables = " << num_dnnInputs_ << " !!";
@@ -145,16 +147,18 @@ TallinnTauProducer::compPFCandInput(const reco::PFCandidate& pfCand,
     const reco::Track* track = getTrack(pfCand);
     if ( track && leadTrack )
     {
-      if      ( inputVariable == "dz"  ) retVal = std::fabs(track->dz(primaryVertexPos) - leadTrack->dz(primaryVertexPos));
+      if      ( inputVariable == "dz"  ) retVal = track->dz(primaryVertexPos);
       else if ( inputVariable == "dxy" ) retVal = std::fabs(track->dxy(primaryVertexPos));
       else                               assert(0);
     }
+    else retVal = -1.; // CV: only for testing !!
   }
   else if ( inputVariable == "dR_leadTrack"   ) retVal = deltaR(pfCand.p4(), leadTrack->momentum());
-  else if ( inputVariable == "dEta_leadTrack" ) retVal = std::fabs(pfCand.eta() - leadTrack->eta());
+  else if ( inputVariable == "dEta_leadTrack" ) retVal = pfCand.eta() - leadTrack->eta();
   else if ( inputVariable == "dPhi_leadTrack" ) retVal = deltaPhi(pfCand.phi(), leadTrack->phi());
   else if ( inputVariable == "dR_jet"         ) retVal = deltaR(pfCand.p4(), pfJet.p4());
-  else if ( inputVariable == "dEta_jet"       ) retVal = std::fabs(pfCand.eta() - pfJet.eta());
+  //else if ( inputVariable == "dEta_jet"       ) retVal = pfCand.eta() - pfJet.eta();
+  else if ( inputVariable == "dEta_jet"       ) retVal = pfJet.eta() - pfCand.eta(); // CV: only for testing !!
   else if ( inputVariable == "dPhi_jet"       ) retVal = deltaPhi(pfCand.phi(), pfJet.phi());
   else if ( inputVariable == "pfCandPt/jetPt" ) retVal = pfCand.pt()/pfJet.pt();
   else
@@ -176,7 +180,7 @@ namespace
   void
   set_dnnInput(tensorflow::Tensor& dnnInputs, size_t idx, double value)
   {
-    dnnInputs.matrix<float>()(0, idx) = value;
+    dnnInputs.flat<float>()(idx) = value;
   }
 
   reco::PFCandidate
@@ -188,7 +192,7 @@ namespace
   }
 
   std::string
-  format_vdouble(const std::vector<double>& values)
+  format_vfloat(const std::vector<float>& values)
   {
     std::ostringstream output;
     output << "[ ";
@@ -310,27 +314,16 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     }
     
     // CV: compute DNN output
-    std::vector<tensorflow::Tensor> dnnOutputs;
-    tensorflow::run(&dnn_->getSession(), {{ dnnInputLayerName_, *dnnInputs_ }}, { dnnOutputLayerName_ }, &dnnOutputs);
-    if ( verbosity_ >= 1 ) 
-    {
-      std::cout << "output = { ";
-      for ( size_t idx_dnnOutput = 0; idx_dnnOutput < (size_t)dnnOutputs[0].flat<float>().size(); ++idx_dnnOutput )
-      {
-        float dnnOutput = dnnOutputs[0].flat<float>()(idx_dnnOutput);
-        if ( idx_dnnOutput > 0 ) std::cout << ", ";
-        std::cout << dnnOutput;
-      }
-      std::cout << " }" << std::endl;
-    }
+    dnnOutputs_.clear();
+    tensorflow::run(tfSession_, {{ dnnInputLayerName_, *dnnInputs_ }}, { dnnOutputLayerName_ }, &dnnOutputs_);
 
     // CV: check that DNN output vector has the expected length and all DNN outputs are between 0 and 1
-    if ( (size_t)dnnOutputs[0].flat<float>().size() != num_dnnOutputs_ )
+    if ( !(dnnOutputs_.size() == 1 && (size_t)dnnOutputs_[0].flat<float>().size() == num_dnnOutputs_) )
       throw cms::Exception("TallinnTauProducer")
-        << "Size of DNN output vector = " << dnnOutputs.size() << " does not match expected size = " << num_dnnOutputs_ << " !!";
+        << "Size of DNN output vector = " << dnnOutputs_[0].flat<float>().size() << " does not match expected size = " << num_dnnOutputs_ << " !!";
     for ( size_t idx_dnnOutput = 0; idx_dnnOutput < num_dnnOutputs_; ++idx_dnnOutput )
     {
-      float dnnOutput = dnnOutputs[0].flat<float>()(idx_dnnOutput);
+      float dnnOutput = dnnOutputs_[0].flat<float>()(idx_dnnOutput);
       if ( !(dnnOutput >= 0. && dnnOutput <= 1.) )
       {
         edm::LogWarning("TallinnTauProducer")
@@ -340,13 +333,25 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       }
     }
 
+    if ( verbosity_ >= 1 ) 
+    {
+      std::cout << "output = { ";
+      for ( size_t idx_dnnOutput = 0; idx_dnnOutput < num_dnnOutputs_; ++idx_dnnOutput )
+      {
+        float dnnOutput = dnnOutputs_[0].flat<float>()(idx_dnnOutput);
+        if ( idx_dnnOutput > 0 ) std::cout << ", ";
+        std::cout << dnnOutput;
+      }
+      std::cout << " }" << std::endl;
+    }
+
     reco::wrappedPFCandidateCollection signalPFCands;
     reco::wrappedPFCandidateCollection isolationPFCands;
 
     for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_dnnOutputs_); ++idxPFJetConstituent )
     {
       const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
-      double signalPFEnFrac = dnnOutputs[0].flat<float>()(idxPFJetConstituent);
+      double signalPFEnFrac = dnnOutputs_[0].flat<float>()(idxPFJetConstituent);
       if ( signalPFEnFrac >= signalMinPFEnFrac_ && signalQualityCuts_.filterCand(pfJetConstituent) )
       {
         reco::PFCandidate signalPFCand = clonePFCand(pfJetConstituent, signalPFEnFrac);
@@ -410,12 +415,24 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       //std::string key_jet = getHash_jet(pfJetRef->p4());
       std::string key_jet = getHash_jet(pfCandSumP4); // CV: ONLY FOR TESTING !!
       (*jsonFile_) << "    " << "\"" << key_evt.str() << "|" << key_jet << "\": {" << std::endl;
-      std::vector<double> dnnInputs_jet;
+      std::vector<float> dnnInputs_jet;
       for ( auto const& jetInput : jetInputs_ )
       {
         dnnInputs_jet.push_back(compJetInput(*pfJetRef, jetInput, selPFJetConstituents.size(), pfCandSumP4, leadTrack));
       }
-      (*jsonFile_) << "        " << "\"inputs\": " << format_vdouble(dnnInputs_jet);
+      (*jsonFile_) << "        " << "\"inputs\": " << format_vfloat(dnnInputs_jet) << "," << std::endl;
+      std::vector<float> dnnInputs_vfloat;
+      for ( size_t idx_dnnInput = 0; idx_dnnInput < num_dnnInputs_; ++idx_dnnInput )
+      {
+        dnnInputs_vfloat.push_back(dnnInputs_->flat<float>()(idx_dnnInput));
+      }
+      (*jsonFile_) << "        " << "\"full_input\": " << format_vfloat(dnnInputs_vfloat) << "," << std::endl;
+      std::vector<float> dnnOutputs_vfloat;
+      for ( size_t idx_dnnOutput = 0; idx_dnnOutput < num_dnnOutputs_; ++idx_dnnOutput )
+      {
+        dnnOutputs_vfloat.push_back(dnnOutputs_[0].flat<float>()(idx_dnnOutput));
+      }
+      (*jsonFile_) << "        " << "\"full_output\": " << format_vfloat(dnnOutputs_vfloat);
       if ( selPFJetConstituents.size() > 0 )
       {
         (*jsonFile_) << ",";
@@ -424,19 +441,19 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_dnnOutputs_); ++idxPFJetConstituent )
       {
         const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
-        std::vector<double> dnnInputs_pfCand;
+        std::vector<float> dnnInputs_pfCand;
         for ( auto const& inputVariable : pfCandInputs_ )
         {      
           dnnInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack));
         }
-        double dnnOutput = dnnOutputs[0].flat<float>()(idxPFJetConstituent);
+        float dnnOutput = dnnOutputs_[0].flat<float>()(idxPFJetConstituent);
         std::string key_pfCand = getHash_pfCand(pfJetConstituent.p4(), pfJetConstituent.particleId(), pfJetConstituent.charge());
         if ( idxPFJetConstituent != 0 )
         {
           (*jsonFile_) << "," << std::endl;
         }
         (*jsonFile_) << "        " << "\"" << key_pfCand << "\": {" << std::endl;
-        (*jsonFile_) << "            " << "\"inputs\": " << format_vdouble(dnnInputs_pfCand) << "," << std::endl;
+        (*jsonFile_) << "            " << "\"inputs\": " << format_vfloat(dnnInputs_pfCand) << "," << std::endl;
         (*jsonFile_) << "            " << "\"output\": " << dnnOutput << std::endl;
         (*jsonFile_) << "        }";
       }
@@ -461,14 +478,16 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
   evt.put(std::move(splittedPFCands), "splittedPFCands");
 }
 
-std::unique_ptr<TallinnTauCache> 
+std::unique_ptr<TFGraphCache> 
 TallinnTauProducer::initializeGlobalCache(const edm::ParameterSet& cfg) 
 {
-  return std::make_unique<TallinnTauCache>(cfg.getParameter<edm::VParameterSet>("graphs"), cfg.getParameter<int>("verbosity"));
+  edm::ParameterSet cfg_graph = cfg.getParameterSet("tfGraph");
+  TFGraphCache* tfGraph = new TFGraphCache(cfg_graph);
+  return std::unique_ptr<TFGraphCache>(tfGraph);
 }
 
 void
-TallinnTauProducer::globalEndJob(const TallinnTauCache* dnn)
+TallinnTauProducer::globalEndJob(const TFGraphCache* tfGraph)
 {}
 
 void 
@@ -483,9 +502,9 @@ TallinnTauProducer::fillDescriptions(edm::ConfigurationDescriptions& description
   desc.add<vstring>("pfCandInputs", {});
   desc.add<unsigned>("maxNumPFCands", 20);
   desc.add<std::vector<int>>("jetConstituent_order", { 1, 2, 4, 3, 5 }); // h, e, gamma, mu, h0
-  edm::ParameterSetDescription desc_graphs;
-  TallinnTauCache::fillDescriptions(desc_graphs);
-  desc.addVPSet("graphs", desc_graphs, {});
+  edm::ParameterSetDescription desc_tfGraph;
+  TFGraphCache::fillDescriptions(desc_tfGraph);
+  desc.add<edm::ParameterSetDescription>("tfGraph", desc_tfGraph);
   desc.add<double>("signalMinPFEnFrac", 0.);
   desc.add<double>("isolationMinPFEnFrac", 0.);
   desc.add<double>("isolationConeSize", 0.5);
@@ -497,7 +516,7 @@ TallinnTauProducer::fillDescriptions(edm::ConfigurationDescriptions& description
   desc.add<bool>("saveInputs", false);
   desc.add<std::string>("jsonFileName", "TallinnTauProducer.json");
   desc.add<int>("verbosity", 0);
-  descriptions.add("tallinnRecoTaus", desc);
+  descriptions.addWithDefaultLabel(desc);
 }
 
 #include "FWCore/Framework/interface/MakerMacros.h"                // DEFINE_FWK_MODULE()

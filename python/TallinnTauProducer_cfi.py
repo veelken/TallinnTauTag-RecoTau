@@ -22,11 +22,11 @@ tallinnTaus = cms.EDProducer("TallinnTauProducer",
     pfCandInputs = cms.vstring("pt", "eta", "phi", "particleId", "charge", "dR_jet", "dEta_jet", "dPhi_jet", "dz"),
     maxNumPFCands = cms.uint32(20),
     jetConstituent_order = cms.vint32(1, 2, 4, 3, 5), # h, e, gamma, mu, h0
-    graphs = cms.VPSet(
-        cms.PSet(
-            inputFile = cms.string("TallinnTauTag/RecoTau/data/dnn_2022Mar03_Torben.pb"),
-            graphName = cms.string("")
-        )
+    tfGraph = cms.PSet(
+        inputFile = cms.string("TallinnTauTag/RecoTau/data/dnn_2022Mar07_Laurits.pb"),
+        graphName = cms.string(""),
+        inputLayerName = cms.string("flatten_input"),
+        outputLayerName = cms.string("Sigmoid")
     ),
     signalMinPFEnFrac = cms.double(0.),
     isolationMinPFEnFrac = cms.double(0.),
