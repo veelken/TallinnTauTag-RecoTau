@@ -151,14 +151,12 @@ TallinnTauProducer::compPFCandInput(const reco::PFCandidate& pfCand,
       else if ( inputVariable == "dxy" ) retVal = std::fabs(track->dxy(primaryVertexPos));
       else                               assert(0);
     }
-    else retVal = -1.; // CV: only for testing !!
   }
   else if ( inputVariable == "dR_leadTrack"   ) retVal = deltaR(pfCand.p4(), leadTrack->momentum());
   else if ( inputVariable == "dEta_leadTrack" ) retVal = pfCand.eta() - leadTrack->eta();
   else if ( inputVariable == "dPhi_leadTrack" ) retVal = deltaPhi(pfCand.phi(), leadTrack->phi());
   else if ( inputVariable == "dR_jet"         ) retVal = deltaR(pfCand.p4(), pfJet.p4());
-  //else if ( inputVariable == "dEta_jet"       ) retVal = pfCand.eta() - pfJet.eta();
-  else if ( inputVariable == "dEta_jet"       ) retVal = pfJet.eta() - pfCand.eta(); // CV: only for testing !!
+  else if ( inputVariable == "dEta_jet"       ) retVal = pfCand.eta() - pfJet.eta();
   else if ( inputVariable == "dPhi_jet"       ) retVal = deltaPhi(pfCand.phi(), pfJet.phi());
   else if ( inputVariable == "pfCandPt/jetPt" ) retVal = pfCand.pt()/pfJet.pt();
   else

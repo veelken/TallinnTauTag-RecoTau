@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn-whitegrid')
 
 inputFilePath1 = "/home/veelken/gnnTauReco/CMSSW_12_1_0/src/TallinnTauTag/RecoTau/test/"
-jsonFileName1 = "Training_2022Mar07.json" # made using DNN in dnn_2022Mar07_Laurits.pb
+jsonFileName1 = "Training_2022Mar09.json" # made using DNN in dnn_2022Mar07_Laurits.pb
 label1 = "Training"
 
 inputFilePath2 = "/home/veelken/gnnTauReco/CMSSW_12_1_0/src/TallinnTauTag/RecoTau/test/"
-jsonFileName2 = "TallinnTauProducer_forLaurits_v8.json"
+jsonFileName2 = "TallinnTauProducer_forLaurits_v9.json"
 label2 = "EDProducer"
 
 ignore_missing_keys = True
@@ -82,6 +82,22 @@ all_events_and_jets.sort(key = functools.cmp_to_key(event_and_jet_order))
 #print("events_and_jets_only1 = %s" % events_and_jets_only1)
 #print("events_and_jets_only2 = %s" % events_and_jets_only2)
 
+def compare_vectors(vector1, vector2, label, event, jet, isFirst):
+    if len(vector1) != len(vector2):
+        raise ValueError("Mismatch in length of %s vectors (1 = %i, 2 = %i) !!" % (len(vector1), len(vector2)))
+    num_entries = len(vector1)
+    for idx_entry in range(num_entries):
+        entry1 = vector1[idx_entry]
+        entry2 = vector2[idx_entry]
+        diff = abs(entry1 - entry2)
+        mean = 0.5*(abs(entry1) + abs(entry2))
+        if diff > diff_threshold:
+            if isFirst:        
+                print("Differences in event %s, jet = '%s':" % (event, jet))
+                isFirst = False
+            print(" full_%s #%i: 1 = %1.6f, 2 = %1.6f" % (label, idx_entry, entry1, entry2))
+    return isFirst
+
 # compare dictionaries and print differences to stdout
 if not ignore_missing_keys:
     for event_and_jet in events_and_jets_only1:
@@ -96,22 +112,13 @@ for event_and_jet in events_and_jets_common:
     ( event, jet ) = separate_event_and_jet(event_and_jet)
     isFirst = True
     #----------------------------------------------------------------------------
-    # CV: compare "full" DNN input vectors (only needed for low-level debugging)
+    # CV: compare "full" DNN input and output vectors (only needed for low-level debugging)
     full_input1 = dict1[event_and_jet]["full_input"]
     full_input2 = dict2[event_and_jet]["full_input"]
-    if len(full_input1) != len(full_input2):
-        raise ValueError("Mismatch in length of input vectors (1 = %i, 2 = %i) !!" % (len(full_input1), len(full_input2)))
-    num_full_input = len(full_input1)
-    for idx_full_input in range(num_full_input):
-        input1 = full_input1[idx_full_input]
-        input2 = full_input2[idx_full_input]
-        diff = abs(input1 - input2)
-        mean = 0.5*(abs(input1) + abs(input2))
-        if diff > diff_threshold:
-            if isFirst:        
-                print("Differences in event %s, jet = '%s':" % (event, jet))
-                isFirst = False
-            print(" full_input #%i: 1 = %1.6f, 2 = %1.6f" % (idx_full_input, input1, input2))
+    isFirst = compare_vectors(full_input1, full_input2, "input", event, jet, isFirst)
+    full_output1 = dict1[event_and_jet]["full_prediction"]
+    full_output2 = dict2[event_and_jet]["full_output"]
+    isFirst = compare_vectors(full_output1, full_output2, "output", event, jet, isFirst)
     #----------------------------------------------------------------------------
     pfCands_that_differ = []
     ( pfCands_common, pfCands_only1, pfCands_only2 ) = split_keys(dict1[event_and_jet], dict2[event_and_jet])

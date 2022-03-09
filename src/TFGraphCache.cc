@@ -14,6 +14,13 @@ TFGraphCache::TFGraphCache(const edm::ParameterSet& cfg)
   std::string graphName = cfg.getParameter<std::string>("graphName");
   std::cout << "<TFGraphCache::TFGraphCache>: loading graph = '" << graphName << "' from input file = '" << inputFileName_full << "'." << std::endl;
   graph_ = tensorflow::loadGraphDef(inputFileName_full);
+  assert(graph_);
+
+  // CV: read names of DNN input and output layers directly from the TensorFlow graph
+  inputLayerName_ = (*graph_).node(0).name();
+  outputLayerName_ = (*graph_).node((*graph_).node_size() - 1).name();
+  std::cout << " inputLayerName = " << inputLayerName_ << std::endl;
+  std::cout << " outputLayerName = " << outputLayerName_ << std::endl;
 
   // set tensorflow verbosity to warning level
   tensorflow::setLogging("2");
