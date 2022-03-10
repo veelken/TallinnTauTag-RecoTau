@@ -61,9 +61,7 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGra
   num_dnnOutputs_ = maxNumPFCands_;
 
   dnnInputLayerName_ = tfGraph->getInputLayerName();
-  std::cout << "dnnInputLayerName = " << dnnInputLayerName_ << std::endl;
   dnnOutputLayerName_ = tfGraph->getOutputLayerName();
-  std::cout << "dnnOutputLayerName = " << dnnOutputLayerName_ << std::endl;
   const auto& dnnInputLayer = tfGraph->getGraph().node(0).attr().at("shape").shape();
   if ( (size_t)dnnInputLayer.dim(1).size() != num_dnnInputs_ )
     throw cms::Exception("TallinnTauProducer")
@@ -210,13 +208,10 @@ namespace
 void 
 TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
 {
-  std::cout << "<TallinnTauProducer::produce (moduleLabel = " << moduleLabel_ << ")>:" << std::endl;
-
   std::unique_ptr<reco::PFTauCollection> pfTaus = std::make_unique<reco::PFTauCollection>();
   std::unique_ptr<reco::PFCandidateCollection> splittedPFCands = std::make_unique<reco::PFCandidateCollection>();
 
   reco::PFCandidateRefProd splittedPFCandsRefProd = evt.getRefBeforePut<reco::PFCandidateCollection>("splittedPFCands");
-  //std::cout << "splittedPFCands: productId = " << splittedPFCandsRefProd.id() << std::endl;
 
   edm::Handle<reco::PFJetCollection> pfJets;
   evt.getByToken(pfJetToken_, pfJets);

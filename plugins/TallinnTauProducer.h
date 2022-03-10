@@ -12,6 +12,7 @@
 #include "RecoTauTag/RecoTau/interface/RecoTauQualityCuts.h"            // reco::tau::RecoTauQualityCuts
 #include "RecoTauTag/RecoTau/interface/RecoTauVertexAssociator.h"       // reco::tau::RecoTauVertexAssociator 
 #include "PhysicsTools/TensorFlow/interface/TensorFlow.h"               // tensorflow::Tensor
+#include "CommonTools/Utils/interface/StringObjectFunction.h"           // StringObjectFunction
 
 #include "DataFormats/JetReco/interface/PFJet.h"                        // reco::PFJet, reco::PFJetRef
 #include "DataFormats/JetReco/interface/PFJetCollection.h"              // reco::PFJetCollection

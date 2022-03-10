@@ -33,7 +33,6 @@ process.productionSequence = cms.Sequence()
 #--------------------------------------------------------------------------------
 # CV: run HPS tau reconstruction with charged isolation tau ID discriminators added
 #     and store taus in pat::Tau format
-
 process.load("RecoTauTag.Configuration.HPSPFTaus_cff")
 process.hpsPFTauBasicDiscriminators.IDWPdefinitions = cms.VPSet(
     cms.PSet(
@@ -76,49 +75,26 @@ process.hpsPFTauBasicDiscriminators.IDWPdefinitions = cms.VPSet(
     )
 )
 process.productionSequence += process.produceAndDiscriminateHPSPFTaus
-
-process.load("PhysicsTools.PatAlgos.producersLayer1.tauProducer_cff")
-from PhysicsTools.PatAlgos.producersLayer1.tauProducer_cfi import singleID, containerID
-process.patTaus.tauIDSources = cms.PSet()
-singleID(process.patTaus.tauIDSources, 'hpsPFTauDiscriminationByDecayModeFinding', "decayModeFinding")
-singleID(process.patTaus.tauIDSources, 'hpsPFTauDiscriminationByDecayModeFindingNewDMs', "decayModeFindingNewDMs")
-containerID(process.patTaus.tauIDSources, "hpsPFTauBasicDiscriminators", "IDWPdefinitions", [
-    [ 'byLooseCombinedIsolationDeltaBetaCorr3Hits', "ByLooseCombinedIsolationDBSumPtCorr3Hits" ],
-    [ 'byMediumCombinedIsolationDeltaBetaCorr3Hits', "ByMediumCombinedIsolationDBSumPtCorr3Hits" ],
-    [ 'byTightCombinedIsolationDeltaBetaCorr3Hits', "ByTightCombinedIsolationDBSumPtCorr3Hits" ],
-    [ 'byLooseChargedIsolation', "ByLooseChargedIsolation" ],
-    [ 'byMediumChargedIsolation', "ByMediumChargedIsolation" ],
-    [ 'byTightChargedIsolation', "ByTightChargedIsolation" ],
-    [ 'byPhotonPtSumOutsideSignalCone', "ByPhotonPtSumOutsideSignalCone"]
-])
-process.productionSequence += process.makePatTaus
 #--------------------------------------------------------------------------------
 
 #--------------------------------------------------------------------------------
 # CV: run Tallinn tau reconstruction
 #     and store taus in pat::Tau format
-
 process.load("TallinnTauTag.RecoTau.TallinnTaus_cff")
 process.productionSequence += process.tallinnTauSequence
-
-process.load("TallinnTauTag.RecoTau.patTallinnTaus_cff")
-process.productionSequence += process.patTallinnTauSequence
 #--------------------------------------------------------------------------------
 
 process.p = cms.Path(process.productionSequence)
 
+from Configuration.EventContent.EventContent_cff import AODSIMEventContent
+myOutputCommands = AODSIMEventContent.outputCommands
+myOutputCommands.append("keep *_tallinnTau*_*_*")
+myOutputCommands.append("keep *_caloStage2Digis_*_*")
+myOutputCommands.append("keep *_gmtStage2Digis_*_*")
+myOutputCommands.append("keep *_gtStage2Digis_*_*")
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('produceTallinnTaus.root'),
-    outputCommands = cms.untracked.vstring(
-        ##"keep *_*_*_*"
-        "drop *_*_*_*",
-        "keep *_tauGenJets_*_*",
-        "keep *_tauGenJetsSelectorAllHadrons_*_*",
-        "keep *_ak4PFJets_*_*",
-        "keep *_particleFlow_*_*",
-        "keep *_patTaus_*_*",
-        "keep *_patTallinnTaus_*_*"
-    )
+    fileName = cms.untracked.string('produceTallinnTaus_AODSIM.root'),
+    outputCommands = myOutputCommands
 )
 process.q = cms.EndPath(process.out)
 
