@@ -94,17 +94,30 @@ namespace reco
       mutable std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFJet>>> jetInputExtractors_;
       std::vector<std::string> pfCandInputs_;
       mutable std::map<std::string, std::unique_ptr<StringObjectFunction<reco::PFCandidate>>> pfCandInputExtractors_;
+
+      std::vector<std::string> pointInputs_;
+      std::vector<std::string> maskInputs_;
+
+
       size_t maxNumPFCands_;
 
       PFJetConstituent_order jetConstituent_order_;
-       
+
       tensorflow::Session* tfSession_;
-      std::unique_ptr<tensorflow::Tensor> dnnInputs_;
-      size_t num_dnnInputs_;
-      std::vector<tensorflow::Tensor> dnnOutputs_;
-      size_t num_dnnOutputs_;
-      std::string dnnInputLayerName_;
-      std::string dnnOutputLayerName_;
+      std::unique_ptr<tensorflow::Tensor> nnInputs_features_;
+
+      std::unique_ptr<tensorflow::Tensor> gnnInputs_points_;
+      std::unique_ptr<tensorflow::Tensor> gnnInputs_mask_;
+      size_t num_nnInputs_;
+      std::vector<tensorflow::Tensor> nnOutputs_;
+      size_t num_nnOutputs_;
+
+      std::string gnnPointsLayerName_;
+      std::string gnnMaskLayerName_;
+      std::string nnFeatureLayerName_;
+      std::string nnOutputLayerName_;
+
+      bool isGNN_;
 
       double signalMinPFEnFrac_;
       double isolationMinPFEnFrac_;
