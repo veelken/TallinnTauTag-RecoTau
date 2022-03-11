@@ -22,6 +22,39 @@ process.source = cms.Source("PoolSource",
     )
 )
 
+inputFilePath = "/hdfs/local/tolange/step3/val/"
+mode = "dnn"
+
+##inputFilePath = $inputFilePath
+##mode = "$mode"
+
+#--------------------------------------------------------------------------------
+# set input files
+
+import os
+import re
+
+inputFile_regex = r"step3_htt.root"
+inputFile_matcher = re.compile(inputFile_regex)
+
+def getInputFileNames(inputFilePath):
+    inputFileNames = []
+    files = os.listdir(inputFilePath)
+    for file in files:
+        if os.path.isdir(os.path.join(inputFilePath, file)):
+            inputFileNames.extend(getInputFileNames(os.path.join(inputFilePath, file)))
+        else:
+            # check if name of inputFile matches regular expression
+            if inputFile_matcher.match(file):
+                inputFileNames.append("file:%s" % os.path.join(inputFilePath, file))
+    return inputFileNames
+
+print("Searching for input files in path = '%s'" % inputFilePath)
+inputFileNames = getInputFileNames(inputFilePath)
+print("Found %i input files." % len(inputFileNames))
+process.source.fileNames = cms.untracked.vstring(inputFileNames)
+#--------------------------------------------------------------------------------
+
 from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase1_2021_realistic', '')
 
@@ -81,6 +114,17 @@ process.productionSequence += process.produceAndDiscriminateHPSPFTaus
 # CV: run Tallinn tau reconstruction
 #     and store taus in pat::Tau format
 process.load("TallinnTauTag.RecoTau.TallinnTaus_cff")
+if mode == "dnn":
+    process.load("TallinnTauTag.RecoTau.TallinnTauProducerDNN_cfi")
+elif mode == "gnn":
+    process.load("TallinnTauTag.RecoTau.TallinnTauProducerGNN_cfi")
+else:
+    raise ValueError("Invalid configuration parameter 'mode' = '%s'!!" % mode) 
+process.tallinnTauSequence = cms.Sequence(
+  process.tallinnTaus
+ + process.tallinnTauDiscriminationByDecayModeFindingNewDMs
+ + process.tallinnTauBasicDiscriminators
+)
 process.productionSequence += process.tallinnTauSequence
 #--------------------------------------------------------------------------------
 
