@@ -3,6 +3,7 @@ import FWCore.ParameterSet.Config as cms
 from RecoTauTag.RecoTau.PFRecoTauDiscriminationByHPSSelection_cfi import *
 from RecoTauTag.RecoTau.PFRecoTauDiscriminationByIsolation_cfi import *
 from TallinnTauTag.RecoTau.TallinnTauProducerDNN_cfi import *
+#from TallinnTauTag.RecoTau.TallinnTauProducerGNN_cfi import *
 
 tallinnTauDiscriminationByDecayModeFindingNewDMs = hpsSelectionDiscriminator.clone(
     PFTauProducer = 'tallinnTaus',

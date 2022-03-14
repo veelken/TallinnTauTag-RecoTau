@@ -12,13 +12,18 @@ process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 process.maxEvents = cms.untracked.PSet(
     ##input = cms.untracked.int32(-1)
-    input = cms.untracked.int32(10)
+    input = cms.untracked.int32(1000)
 )
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
         ##'file:/hdfs/local/tolange/PFMatching/singleTau_mini_wPU.root'
-        'file:/hdfs/local/tolange/step3/0/step3_htt.root'
+        'file:/hdfs/local/tolange/step3/train/0/step3_htt.root'
+    ),
+    dropDescendantsOfDroppedBranches = cms.untracked.bool(True),
+    inputCommands=cms.untracked.vstring(
+        'keep *',
+        'drop *_hpsPFTau*_*_*'
     )
 )
 
@@ -60,8 +65,8 @@ process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase1_2021_realistic', '
 
 process.productionSequence = cms.Sequence()
 
-#process.dumpEventContent = cms.EDAnalyzer("EventContentAnalyzer") 
-#process.productionSequence += process.dumpEventContent
+process.dumpEventContent = cms.EDAnalyzer("EventContentAnalyzer") 
+process.productionSequence += process.dumpEventContent
 
 #--------------------------------------------------------------------------------
 # CV: run HPS tau reconstruction with charged isolation tau ID discriminators added

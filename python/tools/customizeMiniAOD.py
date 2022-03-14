@@ -51,4 +51,10 @@ def customizeTallinnTausMiniAOD(process):
     myOutputCommands.append("keep *_ak4PFJets_*_*")
     myOutputCommands.append("keep *_gtStage2Digis_*_*")
     process.MINIAODSIMoutput.outputCommands = myOutputCommands
+    #----------------------------------------------------------------------------
+    # CV: the following line is necessary,
+    #     because some of the reco::Track collections used as input to the PF reconstruction
+    #     have been dropped from the event content
+    process.options.SkipEvent = cms.untracked.vstring('ProductNotFound')
+    #----------------------------------------------------------------------------
     return process

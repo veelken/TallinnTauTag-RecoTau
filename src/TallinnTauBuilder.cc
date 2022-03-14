@@ -1,5 +1,8 @@
 #include "TallinnTauTag/RecoTau/interface/TallinnTauBuilder.h"
 
+#include "DataFormats/TauReco/interface/PFRecoTauChargedHadron.h"           // reco::PFRecoTauChargedHadron
+#include "DataFormats/TauReco/interface/PFRecoTauChargedHadronFwd.h"        // reco::PFRecoTauChargedHadronCollection
+
 #include "TallinnTauTag/RecoTau/interface/wrappedPFCandidateAuxFunctions.h" // reco::tau::getPFCands_of_type(), reco::tau::getSumP4()
 
 #include <math.h> // round
@@ -94,6 +97,25 @@ namespace
     }
     return cands;
   }
+
+  reco::PFRecoTauChargedHadronCollection
+  convert_to_PFRecoTauChargedHadrons(const reco::wrappedPFCandidateCollection& pfCands)
+  {
+    reco::PFRecoTauChargedHadronCollection tauChargedHadrons;
+    for ( auto const& pfCand : pfCands )
+    {
+      reco::PFRecoTauChargedHadron tauChargedHadron(
+        pfCand.pfCand().charge(),
+        pfCand.p4(),
+        pfCand.pfCand().vertex(),
+        0,
+        true,
+        reco::PFRecoTauChargedHadron::PFRecoTauChargedHadronAlgorithm::kChargedPFCandidate
+      );
+      tauChargedHadrons.push_back(tauChargedHadron);
+    }
+    return tauChargedHadrons;
+  }
 } // namespace
 
 reco::PFTau
@@ -150,10 +172,12 @@ TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
   pfTau.setleadNeutralCand(getLeadingPFCandPtr(signalPFGammaCands));
   pfTau.setsignalCands(convert_to_CandidatePtrs(signalPFCands));
   pfTau.setsignalChargedHadrCands(convert_to_CandidatePtrs(signalPFChargedHadrCands));
+  pfTau.setSignalTauChargedHadronCandidates(convert_to_PFRecoTauChargedHadrons(signalPFChargedHadrCands));
   pfTau.setsignalNeutrHadrCands(convert_to_CandidatePtrs(signalPFNeutralHadrCands));
   pfTau.setsignalGammaCands(convert_to_CandidatePtrs(signalPFGammaCands));
   pfTau.setisolationCands(convert_to_CandidatePtrs(isolationPFCands));
   pfTau.setisolationChargedHadrCands(convert_to_CandidatePtrs(isolationPFChargedHadrCands));
+  pfTau.setIsolationTauChargedHadronCandidates(convert_to_PFRecoTauChargedHadrons(isolationPFChargedHadrCands));
   pfTau.setisolationNeutrHadrCands(convert_to_CandidatePtrs(isolationPFNeutralHadrCands));
   pfTau.setisolationGammaCands(convert_to_CandidatePtrs(isolationPFGammaCands));
   setBendCorr(pfTau);
