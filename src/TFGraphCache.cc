@@ -4,6 +4,26 @@
 
 using namespace reco::tau;
 
+namespace
+{
+  std::string
+  format_vstring(const std::vector<std::string>& values)
+  {
+    std::ostringstream output;
+    output << "[ ";
+    for ( size_t idxValue = 0; idxValue < values.size(); ++idxValue )
+    {
+      if ( idxValue != 0 )
+      {
+        output << ", ";
+      }
+      output << values[idxValue];
+    }
+    output << " ]";
+    return output.str();
+  }
+}
+
 TFGraphCache::TFGraphCache(const edm::ParameterSet& cfg)
   : inputLayerNames_(cfg.getParameter<std::vector<std::string>>("inputLayerNames"))
   , jetInputs_(cfg.getParameter<std::vector<std::string>>("jetInputs"))
@@ -23,9 +43,9 @@ TFGraphCache::TFGraphCache(const edm::ParameterSet& cfg)
   assert(graph_);
 
   // CV: read names of DNN input and output layers directly from the TensorFlow graph
-  //inputLayerName_ = (*graph_).node(0).name();
+  //inputLayerNames_ = { (*graph_).node(0).name() }; // CV: this only works for DNN, not for GNN !!
   outputLayerName_ = (*graph_).node((*graph_).node_size() - 1).name();
-  //std::cout << " inputLayerName = " << inputLayerName_ << std::endl;
+  std::cout << " inputLayerNames = " << format_vstring(inputLayerNames_) << std::endl;
   std::cout << " outputLayerName = " << outputLayerName_ << std::endl;
 
   // set tensorflow verbosity to warning level
@@ -103,12 +123,12 @@ TFGraphCache::fillDescriptions(edm::ParameterSetDescription& desc)
 {
   desc.add<std::string>("inputFile", "");
   desc.add<std::string>("graphName", "");
-  desc.add<std::vector<std::string>>("inputLayerNames", {"input"});
+  desc.add<std::vector<std::string>>("inputLayerNames", { "input" });
   desc.add<std::string>("outputLayerName", "output");
   desc.add<std::vector<std::string>>("jetInputs", {});
   desc.add<std::vector<std::string>>("pfCandInputs", {});
-  desc.add<std::vector<std::string>>("pointInputs", {"dEta_jet","dPhi_jet"});
-  desc.add<std::vector<std::string>>("maskInputs", {"log"});
+  desc.add<std::vector<std::string>>("pointInputs", { "dEta_jet", "dPhi_jet" });
+  desc.add<std::vector<std::string>>("maskInputs", { "log" });
   desc.add<bool>("gnn", false);
   desc.add<unsigned>("maxNumPFCands", 20);
   desc.add<std::vector<int>>("jetConstituent_order", { 1, 2, 4, 3, 5 }); // h, e, gamma, mu, h0
