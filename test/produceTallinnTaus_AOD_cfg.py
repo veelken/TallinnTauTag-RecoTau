@@ -17,7 +17,6 @@ process.maxEvents = cms.untracked.PSet(
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-        ##'file:/hdfs/local/tolange/PFMatching/singleTau_mini_wPU.root'
         'file:/hdfs/local/tolange/step3/train/0/step3_htt.root'
     ),
     dropDescendantsOfDroppedBranches = cms.untracked.bool(True),
