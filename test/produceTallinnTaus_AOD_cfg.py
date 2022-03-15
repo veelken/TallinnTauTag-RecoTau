@@ -5,14 +5,14 @@ process = cms.Process("produceTallinnTaus")
 process.load('Configuration.StandardSequences.Services_cff')
 process.load('SimGeneral.HepPDTESSource.pythiapdt_cfi')
 process.load('FWCore.MessageService.MessageLogger_cfi')
+process.MessageLogger.default.reportEvery = 100
 process.load('Configuration.Geometry.GeometryRecoDB_cff')
 process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('Configuration.StandardSequences.Reconstruction_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 process.maxEvents = cms.untracked.PSet(
-    ##input = cms.untracked.int32(-1)
-    input = cms.untracked.int32(1000)
+    input = cms.untracked.int32(50000)
 )
 
 process.source = cms.Source("PoolSource",
@@ -30,7 +30,7 @@ process.source = cms.Source("PoolSource",
 inputFilePath = "/hdfs/local/tolange/step3/val/"
 mode = "dnn"
 
-##inputFilePath = $inputFilePath
+##inputFilePath = "$inputFilePath"
 ##mode = "$mode"
 
 #--------------------------------------------------------------------------------
@@ -39,7 +39,7 @@ mode = "dnn"
 import os
 import re
 
-inputFile_regex = r"step3_htt.root"
+inputFile_regex = r"[a-zA-Z0-9-_]+.root"
 inputFile_matcher = re.compile(inputFile_regex)
 
 def getInputFileNames(inputFilePath):
@@ -65,8 +65,8 @@ process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase1_2021_realistic', '
 
 process.productionSequence = cms.Sequence()
 
-process.dumpEventContent = cms.EDAnalyzer("EventContentAnalyzer") 
-process.productionSequence += process.dumpEventContent
+##process.dumpEventContent = cms.EDAnalyzer("EventContentAnalyzer") 
+##process.productionSequence += process.dumpEventContent
 
 #--------------------------------------------------------------------------------
 # CV: run HPS tau reconstruction with charged isolation tau ID discriminators added
