@@ -13,7 +13,9 @@ Set the parameter "mode" to either "dnn" (for the DNN trained by Laurits) or "gn
 Then open a new screen session, set the CMSSW variables by executing the commands
 
   source /cvmfs/cms.cern.ch/cmsset_default.sh
+
   cd $CMSSW_BASE/src/TallinnTauTag/RecoTau/test
+
   cmsenv
 
 in the screen session and then execute
