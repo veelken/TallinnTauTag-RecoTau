@@ -127,8 +127,8 @@ TFGraphCache::fillDescriptions(edm::ParameterSetDescription& desc)
   desc.add<std::string>("outputLayerName", "output");
   desc.add<std::vector<std::string>>("jetInputs", {});
   desc.add<std::vector<std::string>>("pfCandInputs", {});
-  desc.add<std::vector<std::string>>("pointInputs", { "dEta_jet", "dPhi_jet" });
-  desc.add<std::vector<std::string>>("maskInputs", { "log" });
+  desc.add<std::vector<std::string>>("pointInputs", { "dEta_pfCandSum", "dPhi_pfCandSum" });
+  desc.add<std::vector<std::string>>("maskInputs", { "log(pt)" });
   desc.add<bool>("gnn", false);
   desc.add<unsigned>("maxNumPFCands", 20);
   desc.add<std::vector<int>>("jetConstituent_order", { 1, 2, 4, 3, 5 }); // h, e, gamma, mu, h0

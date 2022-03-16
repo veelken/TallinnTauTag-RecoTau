@@ -516,21 +516,21 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       //std::string key_jet = getHash_jet(pfJetRef->p4());
       std::string key_jet = getHash_jet(pfCandSumP4); // CV: ONLY FOR TESTING !!
       (*jsonFile_) << "    " << "\"" << key_evt.str() << "|" << key_jet << "\": {" << std::endl;
-      if (!isGNN_)
-	{
-	  std::vector<float> nnInputs_jet;
-	  for ( auto const& jetInput : jetInputs_ )
-	    {
-	      nnInputs_jet.push_back(compJetInput(*pfJetRef, jetInput, selPFJetConstituents.size(), pfCandSumP4, leadTrack));
-	    }
-	  (*jsonFile_) << "        " << "\"inputs\": " << format_vfloat(nnInputs_jet) << "," << std::endl;
-	  std::vector<float> nnInputs_vfloat;
-	  for ( size_t idx_nnInput = 0; idx_nnInput < num_nnInputs_; ++idx_nnInput )
-	    {
-	      nnInputs_vfloat.push_back(nnInputs_features_->flat<float>()(idx_nnInput));
-	    }
-	  (*jsonFile_) << "        " << "\"full_input\": " << format_vfloat(nnInputs_vfloat) << "," << std::endl;
-	}
+      if ( !isGNN_ )
+      {
+        std::vector<float> nnInputs_jet;
+        for ( auto const& jetInput : jetInputs_ )
+        {
+          nnInputs_jet.push_back(compJetInput(*pfJetRef, jetInput, selPFJetConstituents.size(), pfCandSumP4, leadTrack));
+        }
+        (*jsonFile_) << "        " << "\"inputs\": " << format_vfloat(nnInputs_jet) << "," << std::endl;
+        std::vector<float> nnInputs_vfloat;
+        for ( size_t idx_nnInput = 0; idx_nnInput < num_nnInputs_; ++idx_nnInput )
+        {
+          nnInputs_vfloat.push_back(nnInputs_features_->flat<float>()(idx_nnInput));
+        }
+        (*jsonFile_) << "        " << "\"full_input\": " << format_vfloat(nnInputs_vfloat) << "," << std::endl;
+      }
       std::vector<float> nnOutputs_vfloat;
       for ( size_t idx_nnOutput = 0; idx_nnOutput < num_nnOutputs_; ++idx_nnOutput )
       {
@@ -550,15 +550,18 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         {
           nnInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
         }
-	std::vector<float> gnnPointInputs_pfCand;
-        for ( auto const& inputVariable : pointInputs_ )
+        std::vector<float> gnnPointInputs_pfCand;
+        std::vector<float> gnnMaskInputs_pfCand;
+        if ( isGNN_ )
         {
-          gnnPointInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
-        }
-	std::vector<float> gnnMaskInputs_pfCand;
-        for ( auto const& inputVariable : maskInputs_ )
-        {
-          gnnMaskInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+          for ( auto const& inputVariable : pointInputs_ )
+          {
+            gnnPointInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+          }
+          for ( auto const& inputVariable : maskInputs_ )
+          {
+            gnnMaskInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+          }
         }
         float nnOutput = nnOutputs_[0].flat<float>()(idxPFJetConstituent);
         std::string key_pfCand = getHash_pfCand(pfJetConstituent.p4(), pfJetConstituent.particleId(), pfJetConstituent.charge());
@@ -568,7 +571,8 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         }
         (*jsonFile_) << "        " << "\"" << key_pfCand << "\": {" << std::endl;
         (*jsonFile_) << "            " << "\"inputs\": " << format_vfloat(nnInputs_pfCand) << "," << std::endl;
-	if (isGNN_){
+	if ( isGNN_ )
+        {
 	  (*jsonFile_) << "            " << "\"mask\": " << format_vfloat(gnnMaskInputs_pfCand) << "," << std::endl;
 	  (*jsonFile_) << "            " << "\"points\": " << format_vfloat(gnnPointInputs_pfCand) << "," << std::endl;
 	}
