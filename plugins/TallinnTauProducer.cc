@@ -117,16 +117,16 @@ TallinnTauProducer::compJetInput(const reco::PFJet& pfJet,
   //std::cout << " jet: pT = " << pfJet.pt() << ", eta = " << pfJet.eta() << ", phi = " << pfJet.phi() << std::endl;
   //std::cout << " inputVariable = '" << inputVariable << "'" << std::endl;
   double retVal = 0.;
-  if      ( inputVariable == "pfCandSum_pt"        ) retVal = pfCandSumP4.pt();
-  else if ( inputVariable == "pfCandSum_eta"       ) retVal = pfCandSumP4.eta();
-  else if ( inputVariable == "pfCandSum_phi"       ) retVal = pfCandSumP4.phi();
-  else if ( inputVariable == "pfCandSum_mass"      ) retVal = pfCandSumP4.mass();
+  if      ( inputVariable == "pfCandSumPt"        ) retVal = pfCandSumP4.pt();
+  else if ( inputVariable == "pfCandSumEta"       ) retVal = pfCandSumP4.eta();
+  else if ( inputVariable == "pfCandSumPhi"       ) retVal = pfCandSumP4.phi();
+  else if ( inputVariable == "pfCandSumMass"      ) retVal = pfCandSumP4.mass();
   else if ( inputVariable == "dR_leadTrack"        ) retVal = deltaR(pfJet.p4(), leadTrack->momentum());
   else if ( inputVariable == "dEta_leadTrack"      ) retVal = std::fabs(pfJet.eta() - leadTrack->eta());
   else if ( inputVariable == "dPhi_leadTrack"      ) retVal = deltaPhi(pfJet.phi(), leadTrack->phi());
   else if ( inputVariable == "numPFCands"          ) retVal = pfJet.getPFConstituents().size();
   else if ( inputVariable == "numSelectedPFCands"  ) retVal = numPFCands;
-  else if ( inputVariable == "leadTrack_pt/jet_pt" ) retVal = leadTrack->pt()/pfJet.pt();
+  else if ( inputVariable == "leadTrackPt/jetPt" ) retVal = leadTrack->pt()/pfJet.pt();
   else
   {
     auto jetInputExtractor = jetInputExtractors_.find(inputVariable);
@@ -168,40 +168,40 @@ TallinnTauProducer::compPFCandInput(const reco::PFCandidate& pfCand,
   //std::cout << " pfCand: pT = " << pfCand.pt() << ", eta = " << pfCand.eta() << ", phi = " << pfCand.phi() << std::endl;
   //std::cout << " inputVariable = '" << inputVariable << "'" << std::endl;
   double retVal = 0.;
-  if ( inputVariable == "dz" || inputVariable == "dxy" || inputVariable == "logabsdz" || inputVariable == "logabsdxy" )
+  if ( inputVariable == "dz" || inputVariable == "dxy" || inputVariable == "log(abs(dz))" || inputVariable == "log(abs(dxy))" )
   {
     const reco::Track* track = getTrack(pfCand);
     if ( track && leadTrack )
     {
-      if      ( inputVariable == "dz"        ) retVal = track->dz(primaryVertexPos);
-      else if ( inputVariable == "dxy"       ) retVal = std::fabs(track->dxy(primaryVertexPos));
-      else if ( inputVariable == "logabsdz"  ) retVal = std::fabs(track->dz(primaryVertexPos)) > 0. ? log(std::fabs(track->dz(primaryVertexPos)))  : 0.;
-      else if ( inputVariable == "logabsdxy" ) retVal = std::fabs(track->dz(primaryVertexPos)) > 0. ? log(std::fabs(track->dxy(primaryVertexPos))) : 0.;
+      if      ( inputVariable == "dz"                    ) retVal = track->dz(primaryVertexPos);
+      else if ( inputVariable == "dxy"                   ) retVal = std::fabs(track->dxy(primaryVertexPos));
+      else if ( inputVariable == "log(abs(dz))"          ) retVal = std::fabs(track->dz(primaryVertexPos)) > 0. ? log(std::fabs(track->dz(primaryVertexPos)))  : 0.;
+      else if ( inputVariable == "log(abs(dxy))"         ) retVal = std::fabs(track->dz(primaryVertexPos)) > 0. ? log(std::fabs(track->dxy(primaryVertexPos))) : 0.;
       else assert(0);
     }
   }
-  else if ( inputVariable == "dR_leadTrack"     ) retVal = deltaR(pfCand.p4(), leadTrack->momentum());
-  else if ( inputVariable == "dEta_leadTrack"   ) retVal = pfCand.eta() - leadTrack->eta();
-  else if ( inputVariable == "dPhi_leadTrack"   ) retVal = deltaPhi(pfCand.phi(), leadTrack->phi());
-  else if ( inputVariable == "dR_jet"           ) retVal = deltaR(pfCand.p4(), pfJet.p4());
-  else if ( inputVariable == "dEta_jet"         ) retVal = pfCand.eta() - pfJet.eta();
-  else if ( inputVariable == "dPhi_jet"         ) retVal = deltaPhi(pfCand.phi(), pfJet.phi());
-  else if ( inputVariable == "dR_pfCandSum"       ) retVal = deltaR(pfCand.p4(), pfCandSumP4);
-  else if ( inputVariable == "dEta_pfCandSum"     ) retVal = pfCand.eta() - pfCandSumP4.eta();
-  else if ( inputVariable == "dPhi_pfCandSum"     ) retVal = deltaPhi(pfCand.phi(), pfCandSumP4.phi());
-  else if ( inputVariable == "pfCandPt/jetPt"   ) retVal = pfCand.pt()/pfJet.pt();
-  else if ( inputVariable == "logrelpt_jet"     ) retVal = log(pfCand.pt()/pfJet.pt());
-  else if ( inputVariable == "logrelpt_pfCandSum" ) retVal = log(pfCand.pt()/pfCandSumP4.pt());
-  else if ( inputVariable == "logpt"            ) retVal = log(pfCand.pt());
-  else if ( inputVariable == "logEnergy"        ) retVal = log(pfCand.energy());
-  else if ( inputVariable == "logReldR_jet"     ) retVal = deltaR(pfCand.p4(), pfJet.p4()) > 0. ? log(deltaR(pfCand.p4(), pfJet.p4())/pfJet.pt()) : 0.;
-  else if ( inputVariable == "logReldR_pfCandSum" ) retVal = deltaR(pfCand.p4(), pfCandSumP4) > 0. ? log(deltaR(pfCand.p4(), pfCandSumP4)/pfCandSumP4.pt()) : 0.;
-  else if ( inputVariable == "jetpt"            ) retVal = pfJet.pt();
-  else if ( inputVariable == "jeteta"           ) retVal = pfJet.eta();
-  else if ( inputVariable == "jetphi"           ) retVal = pfJet.phi();
-  else if ( inputVariable == "pfCandSum_pt"        ) retVal = pfCandSumP4.pt();
-  else if ( inputVariable == "pfCandSum_eta"       ) retVal = pfCandSumP4.eta();
-  else if ( inputVariable == "pfCandSum_phi"       ) retVal = pfCandSumP4.phi();
+  else if ( inputVariable == "dR_leadTrack"              ) retVal = deltaR(pfCand.p4(), leadTrack->momentum());
+  else if ( inputVariable == "dEta_leadTrack"            ) retVal = pfCand.eta() - leadTrack->eta();
+  else if ( inputVariable == "dPhi_leadTrack"            ) retVal = deltaPhi(pfCand.phi(), leadTrack->phi());
+  else if ( inputVariable == "dR_jet"                    ) retVal = deltaR(pfCand.p4(), pfJet.p4());
+  else if ( inputVariable == "dEta_jet"                  ) retVal = pfCand.eta() - pfJet.eta();
+  else if ( inputVariable == "dPhi_jet"                  ) retVal = deltaPhi(pfCand.phi(), pfJet.phi());
+  else if ( inputVariable == "dR_pfCandSum"              ) retVal = deltaR(pfCand.p4(), pfCandSumP4);
+  else if ( inputVariable == "dEta_pfCandSum"            ) retVal = pfCand.eta() - pfCandSumP4.eta();
+  else if ( inputVariable == "dPhi_pfCandSum"            ) retVal = deltaPhi(pfCand.phi(), pfCandSumP4.phi());
+  else if ( inputVariable == "pfCandPt/jetPt"            ) retVal = pfCand.pt()/pfJet.pt();
+  else if ( inputVariable == "log(pfCandPt/jetPt)"       ) retVal = log(pfCand.pt()/pfJet.pt());
+  else if ( inputVariable == "log(pfCandPt/pfCandSumPt)" ) retVal = log(pfCand.pt()/pfCandSumP4.pt());
+  else if ( inputVariable == "log(pt)"                   ) retVal = log(pfCand.pt());
+  else if ( inputVariable == "log(energy)"               ) retVal = log(pfCand.energy());
+  else if ( inputVariable == "log(dR_jet)"               ) retVal = deltaR(pfCand.p4(), pfJet.p4()) > 0. ? log(deltaR(pfCand.p4(), pfJet.p4())/pfJet.pt()) : 0.;
+  else if ( inputVariable == "log(dR_pfCandSum)"         ) retVal = deltaR(pfCand.p4(), pfCandSumP4) > 0. ? log(deltaR(pfCand.p4(), pfCandSumP4)/pfCandSumP4.pt()) : 0.;
+  else if ( inputVariable == "jetPt"                     ) retVal = pfJet.pt();
+  else if ( inputVariable == "jetEta"                    ) retVal = pfJet.eta();
+  else if ( inputVariable == "jetPhi"                    ) retVal = pfJet.phi();
+  else if ( inputVariable == "pfCandSumPt"               ) retVal = pfCandSumP4.pt();
+  else if ( inputVariable == "pfCandSumEta"              ) retVal = pfCandSumP4.eta();
+  else if ( inputVariable == "pfCandSumPhi"              ) retVal = pfCandSumP4.phi();
   else
   {
     auto pfCandInputExtractor = pfCandInputExtractors_.find(inputVariable);
