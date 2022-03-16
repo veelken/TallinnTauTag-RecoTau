@@ -57,7 +57,7 @@ def getInputFileNames(inputFilePath):
 print("Searching for input files in path = '%s'" % inputFilePath)
 inputFileNames = getInputFileNames(inputFilePath)
 print("Found %i input files." % len(inputFileNames))
-#process.source.fileNames = cms.untracked.vstring(inputFileNames)
+process.source.fileNames = cms.untracked.vstring(inputFileNames)
 #--------------------------------------------------------------------------------
 
 from Configuration.AlCa.GlobalTag import GlobalTag
