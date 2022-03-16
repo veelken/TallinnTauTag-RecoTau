@@ -1,9 +1,9 @@
 #!/usr/bin/sh
 
-mode = "dnn"
-#mode = "gnn"
+mode="dnn"
+#mode="gnn"
 
-version="2022Mar15"
+version="2022Mar16"
 
 source produceAOD.sh $mode $version
 source produceMiniAOD.sh $version
