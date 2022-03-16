@@ -12,8 +12,7 @@ process.load('Configuration.StandardSequences.Reconstruction_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 process.maxEvents = cms.untracked.PSet(
-    ##input = cms.untracked.int32(50000)
-    input = cms.untracked.int32(1000)
+    input = cms.untracked.int32(50000)
 )
 
 process.source = cms.Source("PoolSource",
@@ -28,8 +27,8 @@ process.source = cms.Source("PoolSource",
 )
 
 inputFilePath = "/hdfs/local/tolange/step3/val/"
-#mode = "dnn"
-mode = "gnn"
+mode = "dnn"
+#mode = "gnn"
 
 ##inputFilePath = "$inputFilePath"
 ##mode = "$mode"
@@ -72,7 +71,7 @@ process.productionSequence = cms.Sequence()
 #--------------------------------------------------------------------------------
 # CV: run HPS tau reconstruction with charged isolation tau ID discriminators added
 #     and store taus in pat::Tau format
-process.load("RecoTauTag.Configuration.HPSPFTaus_cff")
+process.load("RecoTauTag.Configuration.RecoPFTauTag_cff")
 process.hpsPFTauBasicDiscriminators.IDWPdefinitions = cms.VPSet(
     cms.PSet(
         IDname = cms.string("ByLooseCombinedIsolationDBSumPtCorr3Hits"),
@@ -113,7 +112,7 @@ process.hpsPFTauBasicDiscriminators.IDWPdefinitions = cms.VPSet(
         maximumRelativeValues = cms.vdouble(0.10)
     )
 )
-process.productionSequence += process.produceAndDiscriminateHPSPFTaus
+process.productionSequence += process.PFTau
 #--------------------------------------------------------------------------------
 
 #--------------------------------------------------------------------------------
