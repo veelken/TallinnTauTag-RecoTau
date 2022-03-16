@@ -121,12 +121,12 @@ TallinnTauProducer::compJetInput(const reco::PFJet& pfJet,
   else if ( inputVariable == "pfCandSumEta"       ) retVal = pfCandSumP4.eta();
   else if ( inputVariable == "pfCandSumPhi"       ) retVal = pfCandSumP4.phi();
   else if ( inputVariable == "pfCandSumMass"      ) retVal = pfCandSumP4.mass();
-  else if ( inputVariable == "dR_leadTrack"        ) retVal = deltaR(pfJet.p4(), leadTrack->momentum());
-  else if ( inputVariable == "dEta_leadTrack"      ) retVal = std::fabs(pfJet.eta() - leadTrack->eta());
-  else if ( inputVariable == "dPhi_leadTrack"      ) retVal = deltaPhi(pfJet.phi(), leadTrack->phi());
-  else if ( inputVariable == "numPFCands"          ) retVal = pfJet.getPFConstituents().size();
-  else if ( inputVariable == "numSelectedPFCands"  ) retVal = numPFCands;
-  else if ( inputVariable == "leadTrackPt/jetPt" ) retVal = leadTrack->pt()/pfJet.pt();
+  else if ( inputVariable == "dR_leadTrack"       ) retVal = deltaR(pfJet.p4(), leadTrack->momentum());
+  else if ( inputVariable == "dEta_leadTrack"     ) retVal = std::fabs(pfJet.eta() - leadTrack->eta());
+  else if ( inputVariable == "dPhi_leadTrack"     ) retVal = deltaPhi(pfJet.phi(), leadTrack->phi());
+  else if ( inputVariable == "numPFCands"         ) retVal = pfJet.getPFConstituents().size();
+  else if ( inputVariable == "numSelectedPFCands" ) retVal = numPFCands;
+  else if ( inputVariable == "leadTrackPt/jetPt"  ) retVal = leadTrack->pt()/pfJet.pt();
   else
   {
     auto jetInputExtractor = jetInputExtractors_.find(inputVariable);
