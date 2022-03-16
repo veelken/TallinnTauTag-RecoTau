@@ -12,7 +12,8 @@ process.load('Configuration.StandardSequences.Reconstruction_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(50000)
+    ##input = cms.untracked.int32(50000)
+    input = cms.untracked.int32(1000)
 )
 
 process.source = cms.Source("PoolSource",
@@ -27,7 +28,8 @@ process.source = cms.Source("PoolSource",
 )
 
 inputFilePath = "/hdfs/local/tolange/step3/val/"
-mode = "dnn"
+#mode = "dnn"
+mode = "gnn"
 
 ##inputFilePath = "$inputFilePath"
 ##mode = "$mode"
@@ -119,16 +121,13 @@ process.productionSequence += process.produceAndDiscriminateHPSPFTaus
 #     and store taus in pat::Tau format
 process.load("TallinnTauTag.RecoTau.TallinnTaus_cff")
 if mode == "dnn":
-    process.load("TallinnTauTag.RecoTau.TallinnTauProducerDNN_cfi")
+    from TallinnTauTag.RecoTau.TallinnTauProducerDNN_cfi import tallinnTaus as tallinnTausDNN
+    process.tallinnTaus = tallinnTausDNN
 elif mode == "gnn":
-    process.load("TallinnTauTag.RecoTau.TallinnTauProducerGNN_cfi")
+    from TallinnTauTag.RecoTau.TallinnTauProducerGNN_cfi import tallinnTaus as tallinnTausGNN
+    process.tallinnTaus = tallinnTausGNN
 else:
     raise ValueError("Invalid configuration parameter 'mode' = '%s'!!" % mode) 
-process.tallinnTauSequence = cms.Sequence(
-  process.tallinnTaus
- + process.tallinnTauDiscriminationByDecayModeFindingNewDMs
- + process.tallinnTauBasicDiscriminators
-)
 process.productionSequence += process.tallinnTauSequence
 #--------------------------------------------------------------------------------
 
