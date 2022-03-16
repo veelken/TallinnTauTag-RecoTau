@@ -79,7 +79,8 @@ namespace reco
       compPFCandInput(const reco::PFCandidate& pfCand, 
                       const std::string& inputVariable, 
                       const reco::Vertex::Point& primaryVertexPos,
-                      const reco::PFJet& pfJet, const reco::Track* leadTrack) const;
+                      const reco::PFJet& pfJet, const reco::Track* leadTrack,
+		      const reco::Candidate::LorentzVector pfCandSumP4) const;
 
       std::string moduleLabel_;
 
