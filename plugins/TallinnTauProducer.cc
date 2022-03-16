@@ -161,7 +161,8 @@ double
 TallinnTauProducer::compPFCandInput(const reco::PFCandidate& pfCand, 
                                     const std::string& inputVariable, 
                                     const reco::Vertex::Point& primaryVertexPos,
-                                    const reco::PFJet& pfJet, const reco::Track* leadTrack) const
+                                    const reco::PFJet& pfJet, const reco::Track* leadTrack,
+				    const reco::Candidate::LorentzVector pfCandSumP4) const
 {
   //std::cout << "<TallinnTauProducer::compPFCandInput>:" << std::endl;
   //std::cout << " pfCand: pT = " << pfCand.pt() << ", eta = " << pfCand.eta() << ", phi = " << pfCand.phi() << std::endl;
@@ -179,20 +180,28 @@ TallinnTauProducer::compPFCandInput(const reco::PFCandidate& pfCand,
       else assert(0);
     }
   }
-  else if ( inputVariable == "dR_leadTrack"   ) retVal = deltaR(pfCand.p4(), leadTrack->momentum());
-  else if ( inputVariable == "dEta_leadTrack" ) retVal = pfCand.eta() - leadTrack->eta();
-  else if ( inputVariable == "dPhi_leadTrack" ) retVal = deltaPhi(pfCand.phi(), leadTrack->phi());
-  else if ( inputVariable == "dR_jet"         ) retVal = deltaR(pfCand.p4(), pfJet.p4());
-  else if ( inputVariable == "dEta_jet"       ) retVal = pfCand.eta() - pfJet.eta();
-  else if ( inputVariable == "dPhi_jet"       ) retVal = deltaPhi(pfCand.phi(), pfJet.phi());
-  else if ( inputVariable == "pfCandPt/jetPt" ) retVal = pfCand.pt()/pfJet.pt();
-  else if ( inputVariable == "logrelpt_jet"   ) retVal = log(pfCand.pt()/pfJet.pt());
-  else if ( inputVariable == "logpt"          ) retVal = log(pfCand.pt());
-  else if ( inputVariable == "logEnergy"      ) retVal = log(pfCand.energy());
-  else if ( inputVariable == "logReldR"       ) retVal = deltaR(pfCand.p4(), pfJet.p4()) > 0. ? log(deltaR(pfCand.p4(), pfJet.p4())/pfJet.pt()) : 0.;
-  else if ( inputVariable == "jetpt"          ) retVal = pfJet.pt();
-  else if ( inputVariable == "jeteta"         ) retVal = pfJet.eta();
-  else if ( inputVariable == "jetphi"         ) retVal = pfJet.phi();
+  else if ( inputVariable == "dR_leadTrack"     ) retVal = deltaR(pfCand.p4(), leadTrack->momentum());
+  else if ( inputVariable == "dEta_leadTrack"   ) retVal = pfCand.eta() - leadTrack->eta();
+  else if ( inputVariable == "dPhi_leadTrack"   ) retVal = deltaPhi(pfCand.phi(), leadTrack->phi());
+  else if ( inputVariable == "dR_jet"           ) retVal = deltaR(pfCand.p4(), pfJet.p4());
+  else if ( inputVariable == "dEta_jet"         ) retVal = pfCand.eta() - pfJet.eta();
+  else if ( inputVariable == "dPhi_jet"         ) retVal = deltaPhi(pfCand.phi(), pfJet.phi());
+  else if ( inputVariable == "dR_pfCandSum"       ) retVal = deltaR(pfCand.p4(), pfCandSumP4);
+  else if ( inputVariable == "dEta_pfCandSum"     ) retVal = pfCand.eta() - pfCandSumP4.eta();
+  else if ( inputVariable == "dPhi_pfCandSum"     ) retVal = deltaPhi(pfCand.phi(), pfCandSumP4.phi());
+  else if ( inputVariable == "pfCandPt/jetPt"   ) retVal = pfCand.pt()/pfJet.pt();
+  else if ( inputVariable == "logrelpt_jet"     ) retVal = log(pfCand.pt()/pfJet.pt());
+  else if ( inputVariable == "logrelpt_pfCandSum" ) retVal = log(pfCand.pt()/pfCandSumP4.pt());
+  else if ( inputVariable == "logpt"            ) retVal = log(pfCand.pt());
+  else if ( inputVariable == "logEnergy"        ) retVal = log(pfCand.energy());
+  else if ( inputVariable == "logReldR_jet"     ) retVal = deltaR(pfCand.p4(), pfJet.p4()) > 0. ? log(deltaR(pfCand.p4(), pfJet.p4())/pfJet.pt()) : 0.;
+  else if ( inputVariable == "logReldR_pfCandSum" ) retVal = deltaR(pfCand.p4(), pfCandSumP4) > 0. ? log(deltaR(pfCand.p4(), pfCandSumP4)/pfCandSumP4.pt()) : 0.;
+  else if ( inputVariable == "jetpt"            ) retVal = pfJet.pt();
+  else if ( inputVariable == "jeteta"           ) retVal = pfJet.eta();
+  else if ( inputVariable == "jetphi"           ) retVal = pfJet.phi();
+  else if ( inputVariable == "pfCandSum_pt"        ) retVal = pfCandSumP4.pt();
+  else if ( inputVariable == "pfCandSum_eta"       ) retVal = pfCandSumP4.eta();
+  else if ( inputVariable == "pfCandSum_phi"       ) retVal = pfCandSumP4.phi();
   else
   {
     auto pfCandInputExtractor = pfCandInputExtractors_.find(inputVariable);
@@ -338,9 +347,11 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       size_t idx_cand = 0;
       for  ( auto const& pfJetConstituent : selPFJetConstituents )
       {
+	size_t idx_var = 0;
 	for ( auto const& inputVariable : pointInputs_ )
         {
-	  set_gnnInput(*gnnInputs_points_, idx_cand, 0, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack));
+	  set_gnnInput(*gnnInputs_points_, idx_cand, idx_var, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+	  idx_var++;
 	}
 	idx_cand++;
       }
@@ -348,9 +359,11 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       idx_cand = 0;
       for  ( auto const& pfJetConstituent : selPFJetConstituents )
       {
+	size_t idx_var = 0;
 	for ( auto const& inputVariable : maskInputs_ )
         {
-	  set_gnnInput(*gnnInputs_mask_, idx_cand, 0, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack));
+	  set_gnnInput(*gnnInputs_mask_, idx_cand, idx_var, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+	  idx_var++;
 	}
 	idx_cand++;
       }
@@ -358,9 +371,11 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       idx_cand = 0;
       for  ( auto const& pfJetConstituent : selPFJetConstituents )
       {
+	size_t idx_var = 0;
 	for ( auto const& inputVariable : pfCandInputs_ )
         {
-	  set_gnnInput(*nnInputs_features_, idx_cand, 0, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack));
+	  set_gnnInput(*nnInputs_features_, idx_cand, idx_var, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+	  idx_var++;
 	}
 	idx_cand++;
       }
@@ -376,10 +391,10 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         ++idx_dnnInput;
       }
       for ( auto const& pfJetConstituent : selPFJetConstituents )
-      {      
+      {
         for ( auto const& inputVariable : pfCandInputs_ )
-        {      
-          set_dnnInput(*nnInputs_features_, idx_dnnInput, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack));
+        {
+          set_dnnInput(*nnInputs_features_, idx_dnnInput, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
           ++idx_dnnInput;
         }
       }
@@ -387,10 +402,10 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     nnOutputs_.clear();
     if ( isGNN_ )
     {
-      // TL: compute GNN output 
+      // TL: compute GNN output
       tensorflow::run(
         tfSession_,
-        {{ gnnPointsLayerName_, *gnnInputs_points_ }, { nnFeatureLayerName_, *nnInputs_features_ }, { gnnMaskLayerName_, *gnnInputs_mask_ } }, 
+        {{ gnnPointsLayerName_, *gnnInputs_points_ }, { nnFeatureLayerName_, *nnInputs_features_ }, { gnnMaskLayerName_, *gnnInputs_mask_ } },
         { nnOutputLayerName_ }, &nnOutputs_
       );
     }
@@ -398,8 +413,8 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     {
       // CV: compute DNN output
       tensorflow::run(
-        tfSession_, 
-        {{ nnFeatureLayerName_, *nnInputs_features_ }}, 
+        tfSession_,
+        {{ nnFeatureLayerName_, *nnInputs_features_ }},
         { nnOutputLayerName_ }, &nnOutputs_
       );
     }
@@ -533,7 +548,17 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         std::vector<float> nnInputs_pfCand;
         for ( auto const& inputVariable : pfCandInputs_ )
         {
-          nnInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack));
+          nnInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+        }
+	std::vector<float> gnnPointInputs_pfCand;
+        for ( auto const& inputVariable : pointInputs_ )
+        {
+          gnnPointInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+        }
+	std::vector<float> gnnMaskInputs_pfCand;
+        for ( auto const& inputVariable : maskInputs_ )
+        {
+          gnnMaskInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
         }
         float nnOutput = nnOutputs_[0].flat<float>()(idxPFJetConstituent);
         std::string key_pfCand = getHash_pfCand(pfJetConstituent.p4(), pfJetConstituent.particleId(), pfJetConstituent.charge());
@@ -543,6 +568,10 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         }
         (*jsonFile_) << "        " << "\"" << key_pfCand << "\": {" << std::endl;
         (*jsonFile_) << "            " << "\"inputs\": " << format_vfloat(nnInputs_pfCand) << "," << std::endl;
+	if (isGNN_){
+	  (*jsonFile_) << "            " << "\"mask\": " << format_vfloat(gnnMaskInputs_pfCand) << "," << std::endl;
+	  (*jsonFile_) << "            " << "\"points\": " << format_vfloat(gnnPointInputs_pfCand) << "," << std::endl;
+	}
         (*jsonFile_) << "            " << "\"output\": " << nnOutput << std::endl;
         (*jsonFile_) << "        }";
       }
