@@ -344,40 +344,35 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     {
       // TL: compute and set GNN input variables
       gnnInputs_points_->flat<float>().setZero();
-      size_t idx_cand = 0;
-      for  ( auto const& pfJetConstituent : selPFJetConstituents )
-      {
-	size_t idx_var = 0;
-	for ( auto const& inputVariable : pointInputs_ )
-        {
-	  set_gnnInput(*gnnInputs_points_, idx_cand, idx_var, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
-	  idx_var++;
-	}
-	idx_cand++;
-      }
       gnnInputs_mask_->flat<float>().setZero();
-      idx_cand = 0;
-      for  ( auto const& pfJetConstituent : selPFJetConstituents )
-      {
-	size_t idx_var = 0;
-	for ( auto const& inputVariable : maskInputs_ )
-        {
-	  set_gnnInput(*gnnInputs_mask_, idx_cand, idx_var, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
-	  idx_var++;
-	}
-	idx_cand++;
-      }
       nnInputs_features_->flat<float>().setZero();
-      idx_cand = 0;
-      for  ( auto const& pfJetConstituent : selPFJetConstituents )
+      for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
       {
-	size_t idx_var = 0;
-	for ( auto const& inputVariable : pfCandInputs_ )
+        const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
+        for ( size_t idxInput = 0; idxInput < pointInputs_.size() ++idxInput )
         {
-	  set_gnnInput(*nnInputs_features_, idx_cand, idx_var, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
-	  idx_var++;
+	  set_gnnInput(
+            *gnnInputs_points_,
+            idxPFJetConstituent, idxInput,
+            compPFCandInput(pfJetConstituent, pointInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+          );
+        }
+        for ( size_t idxInput = 0; idxInput < maskInputs_.size() ++idxInput )
+        {
+	  set_gnnInput(
+            *gnnInputs_mask_, 
+            idxPFJetConstituent, idxInput,
+            compPFCandInput(pfJetConstituent, maskInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+          );
 	}
-	idx_cand++;
+        for ( size_t idxInput = 0; idxInput < pfCandInputs_.size() ++idxInput )
+        {
+	  set_gnnInput(
+            *nnInputs_features_, 
+            idxPFJetConstituent, idxInput,
+            compPFCandInput(pfJetConstituent, pfCandInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+          );
+	}
       }
     }
     else
@@ -387,14 +382,24 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       size_t idx_dnnInput = 0;
       for ( auto const& jetInput : jetInputs_ )
       {
-        set_dnnInput(*nnInputs_features_, idx_dnnInput, compJetInput(*pfJetRef, jetInput, selPFJetConstituents.size(), pfCandSumP4, leadTrack));
+        set_dnnInput(
+          *nnInputs_features_,
+          idx_dnnInput,
+          compJetInput(*pfJetRef, jetInput, selPFJetConstituents.size(), pfCandSumP4, leadTrack)
+        );
         ++idx_dnnInput;
       }
-      for ( auto const& pfJetConstituent : selPFJetConstituents )
+      
+      for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
       {
+        const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
         for ( auto const& inputVariable : pfCandInputs_ )
         {
-          set_dnnInput(*nnInputs_features_, idx_dnnInput, compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+          set_dnnInput(
+            *nnInputs_features_,
+            idx_dnnInput,
+            compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+          );
           ++idx_dnnInput;
         }
       }
