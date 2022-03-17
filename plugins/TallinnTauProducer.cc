@@ -349,7 +349,7 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
       {
         const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
-        for ( size_t idxInput = 0; idxInput < pointInputs_.size() ++idxInput )
+        for ( size_t idxInput = 0; idxInput < pointInputs_.size(); ++idxInput )
         {
 	  set_gnnInput(
             *gnnInputs_points_,
@@ -357,18 +357,18 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
             compPFCandInput(pfJetConstituent, pointInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
         }
-        for ( size_t idxInput = 0; idxInput < maskInputs_.size() ++idxInput )
+        for ( size_t idxInput = 0; idxInput < maskInputs_.size(); ++idxInput )
         {
 	  set_gnnInput(
-            *gnnInputs_mask_, 
+            *gnnInputs_mask_,
             idxPFJetConstituent, idxInput,
             compPFCandInput(pfJetConstituent, maskInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
 	}
-        for ( size_t idxInput = 0; idxInput < pfCandInputs_.size() ++idxInput )
+        for ( size_t idxInput = 0; idxInput < pfCandInputs_.size(); ++idxInput )
         {
 	  set_gnnInput(
-            *nnInputs_features_, 
+            *nnInputs_features_,
             idxPFJetConstituent, idxInput,
             compPFCandInput(pfJetConstituent, pfCandInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
@@ -389,7 +389,7 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         );
         ++idx_dnnInput;
       }
-      
+
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
       {
         const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
