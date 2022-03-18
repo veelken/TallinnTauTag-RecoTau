@@ -61,7 +61,7 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGra
   if ( isGNN_ )
   {
     num_nnInputs_ =  pfCandInputs_.size();
-    gnnInputs_points_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)1, (long)maxNumPFCands_, (long)pointInputs_.size() });
+    gnnInputs_points_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)maxNumPFCands_, (long)pointInputs_.size() });
     gnnPointsLayerName_ = tfGraph->getInputLayerNames()[0];
     gnnInputs_points_->flat<float>().setZero();
     const auto& nnPointsLayer = tfGraph->getGraph().node(0).attr().at("shape").shape();
@@ -69,10 +69,10 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGra
       throw cms::Exception("TallinnTauProducer")
 	<< "Size of GNN points input layer = { " << nnPointsLayer.dim(1).size() << ", " << nnPointsLayer.dim(2).size() << " }" 
         << " does not match number of maxPfCandidates, point input variables = { " << num_nnInputs_ << ", " << pointInputs_.size() << "} !!";
-    nnInputs_features_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)1, (long)maxNumPFCands_, (long)pfCandInputs_.size() });
+    nnInputs_features_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)maxNumPFCands_, (long)pfCandInputs_.size() });
     nnFeatureLayerName_ = tfGraph->getInputLayerNames()[1];
     nnInputs_features_->flat<float>().setZero();
-    gnnInputs_mask_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)1, (long)maxNumPFCands_, (long)maskInputs_.size() });
+    gnnInputs_mask_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)maxNumPFCands_, (long)maskInputs_.size() });
     gnnMaskLayerName_ = tfGraph->getInputLayerNames()[2];
     gnnInputs_mask_->flat<float>().setZero();
     nnOutputLayerName_ = tfGraph->getOutputLayerName();
@@ -225,9 +225,9 @@ namespace
   }
 
   void
-  set_gnnInput(tensorflow::Tensor& gnnInputs, size_t idx2, size_t idx3, double value)
+  set_gnnInput(tensorflow::Tensor& gnnInputs, size_t idx1, size_t idx2, double value)
   {
-    gnnInputs.tensor<float, 3>()(0, idx2, idx3) = value;
+    gnnInputs.tensor<float, 2>()(idx1, idx2) = value;
   }
 
   reco::PFCandidate
