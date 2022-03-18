@@ -42,6 +42,11 @@ def customizeTallinnTausMiniAOD(process):
     ])
     process.patTausTallinn.tauTransverseImpactParameterSource = cms.InputTag("")
     process.selectedPatTausTallinn.cut = cms.string("")
+    #----------------------------------------------------------------------------
+    # CV: add collection 'rekeyLowPtGsfElectronSeedValueMaps' to avoid exception in PATElectronProducer
+    process.load("RecoEgamma.EgammaElectronProducers.lowPtGsfElectronSeedValueMaps_cff")
+    process.makePatElectronsTask = cms.Task(process.rekeyLowPtGsfElectronSeedValueMaps, process.makePatElectronsTask)
+    #----------------------------------------------------------------------------
     myOutputCommands = process.MINIAODSIMoutput.outputCommands
     myOutputCommands.append("keep *_patTaus_*_*")
     myOutputCommands.append("keep *_patTausHPS_*_*")
