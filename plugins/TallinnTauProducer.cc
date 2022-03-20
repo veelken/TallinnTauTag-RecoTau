@@ -36,6 +36,7 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGra
   , isolationMinPFEnFrac_(cfg.getParameter<double>("isolationMinPFEnFrac"))
   , isolationConeSize_(cfg.getParameter<double>("isolationConeSize"))
   , signalQualityCuts_(cfg.getParameterSet("qualityCuts").getParameterSet("signalQualityCuts"))
+  , isolationQualityCuts_(cfg.getParameterSet("qualityCuts").getParameterSet("isolationQualityCuts"))
   , vertexAssociator_(cfg.getParameterSet("qualityCuts"), consumesCollector())
   , tauBuilder_(cfg)
   , saveInputs_(cfg.getParameter<bool>("saveInputs"))
@@ -61,7 +62,7 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGra
   if ( isGNN_ )
   {
     num_nnInputs_ =  pfCandInputs_.size();
-    gnnInputs_points_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)maxNumPFCands_, (long)pointInputs_.size() });
+    gnnInputs_points_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)1, (long)maxNumPFCands_, (long)pointInputs_.size() });
     gnnPointsLayerName_ = tfGraph->getInputLayerNames()[0];
     gnnInputs_points_->flat<float>().setZero();
     const auto& nnPointsLayer = tfGraph->getGraph().node(0).attr().at("shape").shape();
@@ -69,10 +70,10 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGra
       throw cms::Exception("TallinnTauProducer")
 	<< "Size of GNN points input layer = { " << nnPointsLayer.dim(1).size() << ", " << nnPointsLayer.dim(2).size() << " }" 
         << " does not match number of maxPfCandidates, point input variables = { " << num_nnInputs_ << ", " << pointInputs_.size() << "} !!";
-    nnInputs_features_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)maxNumPFCands_, (long)pfCandInputs_.size() });
+    nnInputs_features_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)1, (long)maxNumPFCands_, (long)pfCandInputs_.size() });
     nnFeatureLayerName_ = tfGraph->getInputLayerNames()[1];
     nnInputs_features_->flat<float>().setZero();
-    gnnInputs_mask_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)maxNumPFCands_, (long)maskInputs_.size() });
+    gnnInputs_mask_ = std::make_unique<tensorflow::Tensor>(tensorflow::DT_FLOAT, tensorflow::TensorShape{ (long)1, (long)maxNumPFCands_, (long)maskInputs_.size() });
     gnnMaskLayerName_ = tfGraph->getInputLayerNames()[2];
     gnnInputs_mask_->flat<float>().setZero();
     nnOutputLayerName_ = tfGraph->getOutputLayerName();
@@ -100,7 +101,10 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGra
 
 TallinnTauProducer::~TallinnTauProducer()
 {
-  if ( saveInputs_ )
+  // CV: jsonFile can be a nullptr in case destructor is called
+  //     before any event has been processed by TallinnTauProducer
+  //    (e.g. in case an exception is thrown)
+  if ( saveInputs_ && jsonFile_ )
   {
     (*jsonFile_) << std::endl;
     (*jsonFile_) << "}";
@@ -227,7 +231,7 @@ namespace
   void
   set_gnnInput(tensorflow::Tensor& gnnInputs, size_t idx1, size_t idx2, double value)
   {
-    gnnInputs.tensor<float, 2>()(idx1, idx2) = value;
+    gnnInputs.tensor<float, 3>()(0, idx1, idx2) = value;
   }
 
   reco::PFCandidate
@@ -253,6 +257,19 @@ namespace
     }
     output << " ]";
     return output.str();
+  }
+
+  std::string
+  format_particleId(const reco::PFCandidate& pfCand)
+  {
+    std::string output;
+    if      ( pfCand.particleId() == reco::PFCandidate::ParticleType::h     ) output = "PFChargedHadron";
+    else if ( pfCand.particleId() == reco::PFCandidate::ParticleType::e     ) output = "PFElectron";
+    else if ( pfCand.particleId() == reco::PFCandidate::ParticleType::mu    ) output = "PFMuon";
+    else if ( pfCand.particleId() == reco::PFCandidate::ParticleType::gamma ) output = "PFGamma";
+    else if ( pfCand.particleId() == reco::PFCandidate::ParticleType::h0    ) output = "PFNeutralHadron";
+    else                                                                      output = "Other";
+    return output;
   }
 }
 
@@ -311,6 +328,8 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
 
     signalQualityCuts_.setPV(primaryVertexRef);
     signalQualityCuts_.setLeadTrack(*leadTrack);
+    isolationQualityCuts_.setPV(primaryVertexRef);
+    isolationQualityCuts_.setLeadTrack(*leadTrack);
 
     // CV: apply signal quality cuts to jet constituents 
     std::vector<reco::PFCandidatePtr> allPFJetConstituents = pfJetRef->getPFConstituents();
@@ -349,28 +368,28 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
       {
         const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
-        for ( size_t idxInput = 0; idxInput < pointInputs_.size(); ++idxInput )
+        for ( size_t idx_gnnInput = 0; idx_gnnInput < pointInputs_.size(); ++idx_gnnInput )
         {
 	  set_gnnInput(
             *gnnInputs_points_,
-            idxPFJetConstituent, idxInput,
-            compPFCandInput(pfJetConstituent, pointInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+            idxPFJetConstituent, idx_gnnInput,
+            compPFCandInput(pfJetConstituent, pointInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
         }
-        for ( size_t idxInput = 0; idxInput < maskInputs_.size(); ++idxInput )
+        for ( size_t idx_gnnInput = 0; idx_gnnInput < maskInputs_.size(); ++idx_gnnInput )
         {
 	  set_gnnInput(
             *gnnInputs_mask_,
-            idxPFJetConstituent, idxInput,
-            compPFCandInput(pfJetConstituent, maskInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+            idxPFJetConstituent, idx_gnnInput,
+            compPFCandInput(pfJetConstituent, maskInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
 	}
-        for ( size_t idxInput = 0; idxInput < pfCandInputs_.size(); ++idxInput )
+        for ( size_t idx_gnnInput = 0; idx_gnnInput < pfCandInputs_.size(); ++idx_gnnInput )
         {
 	  set_gnnInput(
             *nnInputs_features_,
-            idxPFJetConstituent, idxInput,
-            compPFCandInput(pfJetConstituent, pfCandInputs_[idxInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+            idxPFJetConstituent, idx_gnnInput,
+            compPFCandInput(pfJetConstituent, pfCandInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
 	}
       }
@@ -458,20 +477,42 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     {
       const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
       double signalPFEnFrac = nnOutputs_[0].flat<float>()(idxPFJetConstituent);
-      if ( signalPFEnFrac >= signalMinPFEnFrac_ && signalQualityCuts_.filterCand(pfJetConstituent) )
+      if ( signalPFEnFrac >= signalMinPFEnFrac_ )
       {
         reco::PFCandidate signalPFCand = clonePFCand(pfJetConstituent, signalPFEnFrac);
-        splittedPFCands->push_back(signalPFCand);
-        edm::Ptr<reco::PFCandidate> signalPFCandPtr(edm::refToPtr(reco::PFCandidateRef(splittedPFCandsRefProd, splittedPFCands->size() - 1)));
-        signalPFCands.push_back(reco::wrappedPFCandidate(signalPFCand, signalPFCandPtr, signalPFEnFrac));
+        if ( signalQualityCuts_.filterCand(signalPFCand) )
+        {
+          if ( verbosity_ >= 1 )
+          {
+            std::cout << "adding (splitted) signalPFCand:" 
+                      << " pT = " << signalPFCand.pt() << "," 
+                      << " eta = " << signalPFCand.eta() << "," 
+                      << " phi = " << signalPFCand.phi() << "," 
+                      << " type = " << format_particleId(signalPFCand) << std::endl;
+          }
+          splittedPFCands->push_back(signalPFCand);
+          edm::Ptr<reco::PFCandidate> signalPFCandPtr(edm::refToPtr(reco::PFCandidateRef(splittedPFCandsRefProd, splittedPFCands->size() - 1)));
+          signalPFCands.push_back(reco::wrappedPFCandidate(signalPFCand, signalPFCandPtr, signalPFEnFrac));
+        }
       }
       double isolationPFEnFrac = 1. - signalPFEnFrac;
       if ( isolationPFEnFrac >= isolationMinPFEnFrac_ )
       {
         reco::PFCandidate isolationPFCand = clonePFCand(pfJetConstituent, isolationPFEnFrac);
-        splittedPFCands->push_back(isolationPFCand);
-        edm::Ptr<reco::PFCandidate> isolationPFCandPtr(edm::refToPtr(reco::PFCandidateRef(splittedPFCandsRefProd, splittedPFCands->size() - 1)));
-        isolationPFCands.push_back(reco::wrappedPFCandidate(isolationPFCand, isolationPFCandPtr, isolationPFEnFrac));
+        if ( isolationQualityCuts_.filterCand(isolationPFCand) )
+        {
+          if ( verbosity_ >= 1 )
+          {
+            std::cout << "adding (splitted) isolationPFCand:" 
+                      << " pT = " << isolationPFCand.pt() << "," 
+                      << " eta = " << isolationPFCand.eta() << "," 
+                      << " phi = " << isolationPFCand.phi() << "," 
+                      << " type = " << format_particleId(isolationPFCand) << std::endl;
+          }
+          splittedPFCands->push_back(isolationPFCand);
+          edm::Ptr<reco::PFCandidate> isolationPFCandPtr(edm::refToPtr(reco::PFCandidateRef(splittedPFCandsRefProd, splittedPFCands->size() - 1)));
+          isolationPFCands.push_back(reco::wrappedPFCandidate(isolationPFCand, isolationPFCandPtr, isolationPFEnFrac));
+        }
       }
     }
 
@@ -490,12 +531,23 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         {
           double dR_jetConstituent = deltaR(pfCandPtr->p4(), pfJetConstituent->p4());
           if ( dR_jetConstituent > 1.e-3 ) continue;
-          if ( pfCandPtr->particleId() == pfJetConstituent->particleId() ) continue;
+          if ( pfCandPtr->particleId() != pfJetConstituent->particleId() ) continue;
           if ( !(pfCandPtr->energy() > 0.99*pfJetConstituent->energy() && pfCandPtr->energy() < 1.01*pfJetConstituent->energy()) ) continue;
           isPFJetConstituent = true;
           break;
         }
-        if ( !isPFJetConstituent ) isolationPFCands.push_back(reco::wrappedPFCandidate(*pfCandPtr, pfCandPtr, 1.));
+        if ( !isPFJetConstituent && isolationQualityCuts_.filterCand(*pfCandPtr) )
+        {
+          if ( verbosity_ >= 1 )
+          {
+            std::cout << "adding isolationPFCand:" 
+                      << " pT = " << pfCandPtr->pt() << "," 
+                      << " eta = " << pfCandPtr->eta() << "," 
+                      << " phi = " << pfCandPtr->phi() << "," 
+                      << " type = " << format_particleId(*pfCandPtr) << std::endl;
+          }
+          isolationPFCands.push_back(reco::wrappedPFCandidate(*pfCandPtr, pfCandPtr, 1.));
+        }
       }
     }
 

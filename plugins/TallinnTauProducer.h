@@ -126,6 +126,7 @@ namespace reco
       double isolationConeSize_;
 
       RecoTauQualityCuts signalQualityCuts_;
+      RecoTauQualityCuts isolationQualityCuts_;
       RecoTauVertexAssociator vertexAssociator_;
 
       TallinnTauBuilder tauBuilder_;
