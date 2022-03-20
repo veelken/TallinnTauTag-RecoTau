@@ -18,6 +18,8 @@ def customizeTallinnTausNanoAOD(process):
           "rawDeepTau2017v2p1VSe", "rawDeepTau2017v2p1VSjet", "rawDeepTau2017v2p1VSmu" ]:
         delattr(process.tauTable.variables, variable)
     process.tauTable.variables.idDecayModeNewDMs = Var("tauID('decayModeFindingNewDMs')", bool)
+    process.tauTable.variables.idLeadTkFinding = Var("tauID('leadingTrackFinding')", bool, "leading track finding")
+    process.tauTable.variables.idLeadTkPtCut = Var("tauID('leadingTrackPtCut')", bool, "leading track pT > 5 GeV")
     process.tauTable.variables.idIso = _tauId3WPMask("by%sCombinedIsolationDeltaBetaCorr3Hits", "HPS combined isolation")
     process.tauTable.variables.idChargedIso = _tauId3WPMask("by%sChargedIsolation", "HPS charged isolation")
     process.finalTausTallinn = selectedPatTaus.clone(
@@ -41,6 +43,8 @@ def customizeTallinnTausNanoAOD(process):
             jetIdx = Var("?hasUserCand('jet')?userCand('jet').key():-1", int, doc="index of the associated jet (-1 if none)"),
             decayMode = Var("decayMode()", int),
             idDecayModeNewDMs = Var("tauID('decayModeFindingNewDMs')", bool),
+            idLeadTkFinding = Var("tauID('leadingTrackFinding')", bool),
+            idLeadTkPtCut = Var("tauID('leadingTrackPtCut')", bool),
             leadTkPtOverTauPt = Var("leadPFChargedHadrCand.pt/pt", float, doc="pt of the leading track divided by tau pt", precision=10),
             leadTkDeltaEta = Var("leadPFChargedHadrCand.eta - eta", float, doc="eta of the leading track, minus tau eta", precision=8),
             leadTkDeltaPhi = Var("deltaPhi(leadPFChargedHadrCand.phi, phi)", float, doc="phi of the leading track, minus tau phi", precision=8),

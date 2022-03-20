@@ -9,6 +9,8 @@ def customizeTallinnTausMiniAOD(process):
     process.PATTauSequence = cms.Sequence(process.makePatTaus + process.selectedPatTaus)
     process.PATTauSequenceHPS = cloneProcessingSnippet(process, process.PATTauSequence, "HPS", addToTask = True)
     process.selectedPatTausHPS.cut = cms.string("")
+    singleID(process.patTausHPS.tauIDSources, 'hpsPFTauDiscriminationByLeadingTrackFinding', "leadingTrackFinding")
+    singleID(process.patTausHPS.tauIDSources, 'hpsPFTauDiscriminationByLeadingTrackPtCut', "leadingTrackPtCut")
     containerID(process.patTausHPS.tauIDSources, 'hpsPFTauBasicDiscriminators', "IDWPdefinitions", [
         [ 'byLooseCombinedIsolationDeltaBetaCorr3Hits', "ByLooseCombinedIsolationDBSumPtCorr3Hits" ],
         [ 'byMediumCombinedIsolationDeltaBetaCorr3Hits', "ByMediumCombinedIsolationDBSumPtCorr3Hits" ],
@@ -22,6 +24,8 @@ def customizeTallinnTausMiniAOD(process):
     massSearchReplaceAnyInputTag(process.PATTauSequenceTallinn, 'hpsPFTauProducer', 'tallinnTaus')
     process.patTausTallinn.tauIDSources = cms.PSet()
     singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByDecayModeFindingNewDMs', "decayModeFindingNewDMs")
+    singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByLeadingTrackFinding', "leadingTrackFinding")
+    singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByLeadingTrackPtCut', "leadingTrackPtCut")
     containerID(process.patTausTallinn.tauIDSources, 'tallinnTauBasicDiscriminators', "IDdefinitions", [
         [ 'chargedIsoPtSum', "ChargedIsoPtSum" ],
         [ 'neutralIsoPtSum', "NeutralIsoPtSum" ],
