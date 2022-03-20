@@ -1,6 +1,8 @@
 import FWCore.ParameterSet.Config as cms
 
 from RecoTauTag.RecoTau.PFRecoTauDiscriminationByHPSSelection_cfi import *
+from RecoTauTag.RecoTau.PFRecoTauDiscriminationByLeadingTrackFinding_cfi import *
+from RecoTauTag.RecoTau.PFRecoTauDiscriminationByLeadingObjectPtCut_cfi import *
 from RecoTauTag.RecoTau.PFRecoTauDiscriminationByIsolation_cfi import *
 from TallinnTauTag.RecoTau.TallinnTauProducerDNN_cfi import *
 #from TallinnTauTag.RecoTau.TallinnTauProducerGNN_cfi import *
@@ -18,7 +20,7 @@ tallinnTauDiscriminationByDecayModeFindingNewDMs = hpsSelectionDiscriminator.clo
     )
 )
 
-requireDecayMode = cms.PSet(
+tallinnTau_requireDecayMode = cms.PSet(
     BooleanOperator = cms.string("and"),
     decayMode = cms.PSet(
         Producer = cms.InputTag('tallinnTauDiscriminationByDecayModeFindingNewDMs'),
@@ -26,12 +28,33 @@ requireDecayMode = cms.PSet(
     )
 )
 
-## DeltaBeta correction factor
+tallinnTauDiscriminationByLeadingTrackFinding = pfRecoTauDiscriminationByLeadingTrackFinding.clone(
+    PFTauProducer = 'tallinnTaus',
+    UseOnlyChargedHadrons = True
+)
+
+tallinnTau_requireLeadTrack = cms.PSet(
+    BooleanOperator = cms.string("and"),
+    leadTrack = cms.PSet(
+        Producer = cms.InputTag('tallinnTauDiscriminationByLeadingTrackFinding'),
+        cut = cms.double(0.5)
+    )
+)
+
+tallinnTauDiscriminationByLeadingTrackPtCut = pfRecoTauDiscriminationByLeadingObjectPtCut.clone(
+    PFTauProducer = 'tallinnTaus',
+    Prediscriminants = tallinnTau_requireLeadTrack.clone(),
+    UseOnlyChargedHadrons = True, 
+    MinPtLeadingObject = cms.double(5.0)
+)
+
+# DeltaBeta correction factor
 ak4dBetaCorrection = 0.20
 
 tallinnTauBasicDiscriminators = pfRecoTauDiscriminationByIsolation.clone(
     PFTauProducer = 'tallinnTaus',
-    Prediscriminants = requireDecayMode.clone(),
+    #Prediscriminants = tallinnTau_requireDecayMode.clone(),
+    Prediscriminants = tallinnTau_requireLeadTrack.clone(),
     deltaBetaPUTrackPtCutOverride     = True, # Set the boolean = True to override.
     deltaBetaPUTrackPtCutOverride_val = 0.5,  # Set the value for new value.
     customOuterCone = PFRecoTauPFJetInputs.isolationConeSize,
@@ -121,5 +144,7 @@ tallinnTauBasicDiscriminators = pfRecoTauDiscriminationByIsolation.clone(
 tallinnTauSequence = cms.Sequence(
   tallinnTaus
  + tallinnTauDiscriminationByDecayModeFindingNewDMs
+ + tallinnTauDiscriminationByLeadingTrackFinding
+ + tallinnTauDiscriminationByLeadingTrackPtCut
  + tallinnTauBasicDiscriminators
 )
