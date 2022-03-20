@@ -153,6 +153,7 @@ TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
   pfTau.setCharge(charge);
   int pdgId = ( charge_float >= 0. ) ? -15 : +15; 
   pfTau.setPdgId(pdgId);
+  pfTau.setVertex(primaryVertexPos);
   reco::wrappedPFCandidateCollection signalPFChargedHadrCands = getPFCands_of_type(signalPFCands, chargedHadrParticleIds_);
   reco::wrappedPFCandidateCollection isolationPFChargedHadrCands = getPFCands_of_type(isolationPFCands, chargedHadrParticleIds_);
   reco::wrappedPFCandidateCollection signalPFNeutralHadrCands = getPFCands_of_type(signalPFCands, { reco::PFCandidate::h0 });
