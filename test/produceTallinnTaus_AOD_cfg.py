@@ -13,6 +13,7 @@ process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(50000)
+    ##input = cms.untracked.int32(10)
 )
 
 process.source = cms.Source("PoolSource",
@@ -72,6 +73,26 @@ process.productionSequence = cms.Sequence()
 # CV: run HPS tau reconstruction with charged isolation tau ID discriminators added
 #     and store taus in pat::Tau format
 process.load("RecoTauTag.Configuration.RecoPFTauTag_cff")
+from RecoTauTag.RecoTau.PFRecoTauDiscriminationByLeadingTrackFinding_cfi import pfRecoTauDiscriminationByLeadingTrackFinding 
+process.hpsPFTauDiscriminationByLeadingTrackFinding = pfRecoTauDiscriminationByLeadingTrackFinding.clone(
+    PFTauProducer = 'hpsPFTauProducer',
+    UseOnlyChargedHadrons = True
+)
+hpsPFTau_requireLeadTrack = cms.PSet(
+    BooleanOperator = cms.string("and"),
+    leadTrack = cms.PSet(
+        Producer = cms.InputTag('hpsPFTauDiscriminationByLeadingTrackFinding'),
+        cut = cms.double(0.5)
+    )
+)
+from RecoTauTag.RecoTau.PFRecoTauDiscriminationByLeadingObjectPtCut_cfi import pfRecoTauDiscriminationByLeadingObjectPtCut
+process.hpsPFTauDiscriminationByLeadingTrackPtCut = pfRecoTauDiscriminationByLeadingObjectPtCut.clone(
+    PFTauProducer = 'hpsPFTauProducer',
+    Prediscriminants = hpsPFTau_requireLeadTrack.clone(),
+    UseOnlyChargedHadrons = True, 
+    MinPtLeadingObject = cms.double(5.0)
+)
+process.hpsPFTauBasicDiscriminators.Prediscriminants = hpsPFTau_requireLeadTrack.clone(),
 process.hpsPFTauBasicDiscriminators.IDWPdefinitions = cms.VPSet(
     cms.PSet(
         IDname = cms.string("ByLooseCombinedIsolationDBSumPtCorr3Hits"),
@@ -113,6 +134,8 @@ process.hpsPFTauBasicDiscriminators.IDWPdefinitions = cms.VPSet(
     )
 )
 process.productionSequence += process.PFTau
+process.productionSequence += process.hpsPFTauDiscriminationByLeadingTrackFinding
+process.productionSequence += process.hpsPFTauDiscriminationByLeadingTrackPtCut
 #--------------------------------------------------------------------------------
 
 #--------------------------------------------------------------------------------
@@ -134,6 +157,7 @@ process.p = cms.Path(process.productionSequence)
 
 from Configuration.EventContent.EventContent_cff import AODSIMEventContent
 myOutputCommands = AODSIMEventContent.outputCommands
+myOutputCommands.append("keep *_hpsPFTau*_*_*")
 myOutputCommands.append("keep *_tallinnTau*_*_*")
 myOutputCommands.append("keep *_caloStage2Digis_*_*")
 myOutputCommands.append("keep *_gmtStage2Digis_*_*")
