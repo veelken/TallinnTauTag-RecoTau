@@ -9,22 +9,26 @@ echo "produceAOD.sh: mode = '$mode'"
 version=$2
 echo "produceAOD.sh: version = '$version'"
 
-rm produceTallinnTaus_ggH_htt_DNN_AOD_cfg.py
+configFile=produceTallinnTaus_ggH_htt_"$mode"_AOD_cfg.py
+rm $configFile
 sed_command="s/##inputFilePath/inputFilePath/; s/\$inputFilePath/$inputFilePath_ggH_htt/; s/##mode/mode/; s/\$mode/$mode/"
-sed "$sed_command" produceTallinnTaus_AOD_cfg.py >& produceTallinnTaus_ggH_htt_DNN_AOD_cfg.py
+sed "$sed_command" produceTallinnTaus_AOD_cfg.py >& $configFile
 
-rm produceTallinnTaus_ggH_htt_DNN_AOD.log
-cmsRun produceTallinnTaus_ggH_htt_DNN_AOD_cfg.py >& produceTallinnTaus_ggH_htt_DNN_AOD.log
+logFile=produceTallinnTaus_ggH_htt_"$mode"_AOD.log
+rm $logFile
+cmsRun $configFile >& $logFile
 outputFile=produceTallinnTaus_ggH_htt_DNN_"$version"_AODSIM.root
 echo "produceAOD.sh: outputFile for process 'ggH_htt' = '$outputFile'"
 mv produceTallinnTaus_AODSIM.root $outputFile
 
-rm produceTallinnTaus_qcd_DNN_AOD_cfg.py
+configFile=produceTallinnTaus_qcd_"$mode"_AOD_cfg.py
+rm $configFile
 sed_command="s/##inputFilePath/inputFilePath/; s/\$inputFilePath/$inputFilePath_qcd/; s/##mode/mode/; s/\$mode/$mode/"
-sed "$sed_command" produceTallinnTaus_AOD_cfg.py >& produceTallinnTaus_qcd_DNN_AOD_cfg.py
+sed "$sed_command" produceTallinnTaus_AOD_cfg.py >& $configFile
 
-rm produceTallinnTaus_qcd_DNN_AOD.log
-cmsRun produceTallinnTaus_qcd_DNN_AOD_cfg.py >& produceTallinnTaus_qcd_DNN_AOD.log
+logFile=produceTallinnTaus_qcd_"$mode"_AOD.log
+rm $logFile
+cmsRun $configFile >& $logFile
 outputFile=produceTallinnTaus_qcd_DNN_"$version"_AODSIM.root
 echo "produceAOD.sh: outputFile for process 'qcd' = '$outputFile'"
 mv produceTallinnTaus_AODSIM.root $outputFile
