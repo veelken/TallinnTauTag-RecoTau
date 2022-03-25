@@ -29,8 +29,15 @@ tallinnTaus = cms.EDProducer("TallinnTauProducer",
         maxNumPFCands = cms.uint32(20),
         jetConstituent_order = cms.vint32(1, 2, 4, 3, 5) # h, e, gamma, mu, h0
     ),
-    signalMinPFEnFrac = cms.double(0.),
-    isolationMinPFEnFrac = cms.double(0.),
+    signalMinPFEnFrac = cms.double(0.5),
+    isolationMinPFEnFrac = cms.double(0.5),
+    # CV: Valid settings for the mode parameter are "regression" and "classification".
+    #     If the mode is set to regression, each PFCandidate constituent of the jet that seeds the tau reconstruction 
+    #     is split into "signal" and "isolation" candidates, depending on the signalPFEnFrac value returned for this PFCandidate by the DNN.
+    #     If the mode is set to classification, the PFCandidate is taken as signal candidate of the tau if the signalPFEnFrac value 
+    #     exceeds the value of the signalMinPFEnFrac parameter and contributes to the isolation of the tau if the signalPFEnFrac value 
+    #     exceeds the value of the isolationMinPFEnFrac parameter.
+    mode = cms.string("classification"),
     signalConeSize = cms.string("max(min(0.1, 3.0/pt()), 0.05)"),
     isolationConeSize = PFRecoTauPFJetInputs.isolationConeSize,
     qualityCuts = PFTauQualityCuts,

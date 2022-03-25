@@ -122,6 +122,8 @@ namespace reco
 
       double signalMinPFEnFrac_;
       double isolationMinPFEnFrac_;
+      enum { kUndefined, kRegression, kClassification };
+      int mode_;
 
       double isolationConeSize_;
 

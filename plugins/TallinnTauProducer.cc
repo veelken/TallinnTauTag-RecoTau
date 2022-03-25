@@ -52,6 +52,12 @@ TallinnTauProducer::TallinnTauProducer(const edm::ParameterSet& cfg, const TFGra
   pfCandSrc_ = cfg.getParameter<edm::InputTag>("pfCandSrc");
   pfCandToken_ = consumes<reco::PFCandidateCollection>(pfCandSrc_);
 
+  std::string mode_string = cfg.getParameter<std::string>("mode");
+  if      ( mode_string == "regression"     ) mode_ = kRegression;
+  else if ( mode_string == "classification" ) mode_ = kClassification;
+  else throw cms::Exception("TallinnTauProducer")
+    << "Invalid Configuration parameter 'mode' = " << mode_string << " !!";
+
   isGNN_ = tfGraph->isGNN();
   jetInputs_ = tfGraph->getJetInputs();
   pfCandInputs_ = tfGraph->getPFCandInputs();
@@ -334,11 +340,11 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     // CV: apply signal quality cuts to jet constituents 
     std::vector<reco::PFCandidatePtr> allPFJetConstituents = pfJetRef->getPFConstituents();
     std::vector<reco::PFCandidatePtr> selPFJetConstituents;
-    for ( auto const& pfJetConstituent : allPFJetConstituents )
+    for ( auto const& pfJetConstituentPtr : allPFJetConstituents )
     {
-      if ( signalQualityCuts_.filterCand(*pfJetConstituent) )
+      if ( signalQualityCuts_.filterCand(*pfJetConstituentPtr) )
       {
-        selPFJetConstituents.push_back(pfJetConstituent);
+        selPFJetConstituents.push_back(pfJetConstituentPtr);
       }
     }
 
@@ -354,9 +360,9 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
     }
 
     reco::Candidate::LorentzVector pfCandSumP4;
-    for ( auto const& pfJetConstituent : selPFJetConstituents )
+    for ( auto const& pfJetConstituentPtr : selPFJetConstituents )
     {
-      pfCandSumP4 += pfJetConstituent->p4();
+      pfCandSumP4 += pfJetConstituentPtr->p4();
     }
 
     if ( isGNN_ )
@@ -367,13 +373,13 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       nnInputs_features_->flat<float>().setZero();
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
       {
-        const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
+        const reco::PFCandidatePtr& pfJetConstituentPtr = selPFJetConstituents.at(idxPFJetConstituent);
         for ( size_t idx_gnnInput = 0; idx_gnnInput < pointInputs_.size(); ++idx_gnnInput )
         {
 	  set_gnnInput(
             *gnnInputs_points_,
             idxPFJetConstituent, idx_gnnInput,
-            compPFCandInput(pfJetConstituent, pointInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+            compPFCandInput(*pfJetConstituentPtr, pointInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
         }
         for ( size_t idx_gnnInput = 0; idx_gnnInput < maskInputs_.size(); ++idx_gnnInput )
@@ -381,7 +387,7 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
 	  set_gnnInput(
             *gnnInputs_mask_,
             idxPFJetConstituent, idx_gnnInput,
-            compPFCandInput(pfJetConstituent, maskInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+            compPFCandInput(*pfJetConstituentPtr, maskInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
 	}
         for ( size_t idx_gnnInput = 0; idx_gnnInput < pfCandInputs_.size(); ++idx_gnnInput )
@@ -389,7 +395,7 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
 	  set_gnnInput(
             *nnInputs_features_,
             idxPFJetConstituent, idx_gnnInput,
-            compPFCandInput(pfJetConstituent, pfCandInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+            compPFCandInput(*pfJetConstituentPtr, pfCandInputs_[idx_gnnInput], primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
 	}
       }
@@ -411,13 +417,13 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
 
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
       {
-        const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
+        const reco::PFCandidatePtr& pfJetConstituentPtr = selPFJetConstituents.at(idxPFJetConstituent);
         for ( auto const& inputVariable : pfCandInputs_ )
         {
           set_dnnInput(
             *nnInputs_features_,
             idx_dnnInput,
-            compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
+            compPFCandInput(*pfJetConstituentPtr, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4)
           );
           ++idx_dnnInput;
         }
@@ -475,43 +481,79 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
 
     for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
     {
-      const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
+      const reco::PFCandidatePtr& pfJetConstituentPtr = selPFJetConstituents.at(idxPFJetConstituent);
       double signalPFEnFrac = nnOutputs_[0].flat<float>()(idxPFJetConstituent);
-      if ( signalPFEnFrac >= signalMinPFEnFrac_ )
+      double isolationPFEnFrac = 1. - signalPFEnFrac;
+      if ( mode_ == kClassification )
       {
-        reco::PFCandidate signalPFCand = clonePFCand(pfJetConstituent, signalPFEnFrac);
-        if ( signalQualityCuts_.filterCand(signalPFCand) )
+        if ( signalPFEnFrac >= signalMinPFEnFrac_ )
         {
-          if ( verbosity_ >= 1 )
+          if ( signalQualityCuts_.filterCand(*pfJetConstituentPtr) )
           {
-            std::cout << "adding (splitted) signalPFCand:" 
-                      << " pT = " << signalPFCand.pt() << "," 
-                      << " eta = " << signalPFCand.eta() << "," 
-                      << " phi = " << signalPFCand.phi() << "," 
-                      << " type = " << format_particleId(signalPFCand) << std::endl;
+            if ( verbosity_ >= 1 )
+            {
+              std::cout << "adding signalPFCand:" 
+                        << " pT = " << pfJetConstituentPtr->pt() << "," 
+                        << " eta = " << pfJetConstituentPtr->eta() << "," 
+                        << " phi = " << pfJetConstituentPtr->phi() << "," 
+                        << " type = " << format_particleId(*pfJetConstituentPtr) << std::endl;
+            }
+            signalPFCands.push_back(reco::wrappedPFCandidate(*pfJetConstituentPtr, pfJetConstituentPtr, 1.));
           }
-          splittedPFCands->push_back(signalPFCand);
-          edm::Ptr<reco::PFCandidate> signalPFCandPtr(edm::refToPtr(reco::PFCandidateRef(splittedPFCandsRefProd, splittedPFCands->size() - 1)));
-          signalPFCands.push_back(reco::wrappedPFCandidate(signalPFCand, signalPFCandPtr, signalPFEnFrac));
+        }
+        if ( isolationPFEnFrac >= isolationMinPFEnFrac_ )
+        {
+          if ( isolationQualityCuts_.filterCand(*pfJetConstituentPtr) )
+          {
+            if ( verbosity_ >= 1 )
+            {
+              std::cout << "adding isolationPFCand:" 
+                        << " pT = " << pfJetConstituentPtr->pt() << "," 
+                        << " eta = " << pfJetConstituentPtr->eta() << "," 
+                        << " phi = " << pfJetConstituentPtr->phi() << "," 
+                        << " type = " << format_particleId(*pfJetConstituentPtr) << std::endl;
+            }
+            isolationPFCands.push_back(reco::wrappedPFCandidate(*pfJetConstituentPtr, pfJetConstituentPtr, 1.));
+          }
         }
       }
-      double isolationPFEnFrac = 1. - signalPFEnFrac;
-      if ( isolationPFEnFrac >= isolationMinPFEnFrac_ )
+      else
       {
-        reco::PFCandidate isolationPFCand = clonePFCand(pfJetConstituent, isolationPFEnFrac);
-        if ( isolationQualityCuts_.filterCand(isolationPFCand) )
+        if ( signalPFEnFrac >= signalMinPFEnFrac_ )
         {
-          if ( verbosity_ >= 1 )
+          reco::PFCandidate signalPFCand = clonePFCand(*pfJetConstituentPtr, signalPFEnFrac);
+          if ( signalQualityCuts_.filterCand(signalPFCand) )
           {
-            std::cout << "adding (splitted) isolationPFCand:" 
-                      << " pT = " << isolationPFCand.pt() << "," 
-                      << " eta = " << isolationPFCand.eta() << "," 
-                      << " phi = " << isolationPFCand.phi() << "," 
-                      << " type = " << format_particleId(isolationPFCand) << std::endl;
+            if ( verbosity_ >= 1 )
+            {
+              std::cout << "adding (splitted) signalPFCand:" 
+                        << " pT = " << signalPFCand.pt() << "," 
+                        << " eta = " << signalPFCand.eta() << "," 
+                        << " phi = " << signalPFCand.phi() << "," 
+                        << " type = " << format_particleId(signalPFCand) << std::endl;
+            }
+            splittedPFCands->push_back(signalPFCand);
+            edm::Ptr<reco::PFCandidate> signalPFCandPtr(edm::refToPtr(reco::PFCandidateRef(splittedPFCandsRefProd, splittedPFCands->size() - 1)));
+            signalPFCands.push_back(reco::wrappedPFCandidate(signalPFCand, signalPFCandPtr, signalPFEnFrac));
           }
-          splittedPFCands->push_back(isolationPFCand);
-          edm::Ptr<reco::PFCandidate> isolationPFCandPtr(edm::refToPtr(reco::PFCandidateRef(splittedPFCandsRefProd, splittedPFCands->size() - 1)));
-          isolationPFCands.push_back(reco::wrappedPFCandidate(isolationPFCand, isolationPFCandPtr, isolationPFEnFrac));
+        }        
+        if ( isolationPFEnFrac >= isolationMinPFEnFrac_ )
+        {
+          reco::PFCandidate isolationPFCand = clonePFCand(*pfJetConstituentPtr, isolationPFEnFrac);
+          if ( isolationQualityCuts_.filterCand(isolationPFCand) )
+          {
+            if ( verbosity_ >= 1 )
+            {
+              std::cout << "adding (splitted) isolationPFCand:" 
+                        << " pT = " << isolationPFCand.pt() << "," 
+                        << " eta = " << isolationPFCand.eta() << "," 
+                        << " phi = " << isolationPFCand.phi() << "," 
+                        << " type = " << format_particleId(isolationPFCand) << std::endl;
+            }
+            splittedPFCands->push_back(isolationPFCand);
+            edm::Ptr<reco::PFCandidate> isolationPFCandPtr(edm::refToPtr(reco::PFCandidateRef(splittedPFCandsRefProd, splittedPFCands->size() - 1)));
+            isolationPFCands.push_back(reco::wrappedPFCandidate(isolationPFCand, isolationPFCandPtr, isolationPFEnFrac));
+          }
         }
       }
     }
@@ -527,12 +569,12 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       if ( dR_tau < isolationConeSize_ )
       {
         bool isPFJetConstituent = false;
-        for ( auto const& pfJetConstituent : allPFJetConstituents )
+        for ( auto const& pfJetConstituentPtr : allPFJetConstituents )
         {
-          double dR_jetConstituent = deltaR(pfCandPtr->p4(), pfJetConstituent->p4());
+          double dR_jetConstituent = deltaR(pfCandPtr->p4(), pfJetConstituentPtr->p4());
           if ( dR_jetConstituent > 1.e-3 ) continue;
-          if ( pfCandPtr->particleId() != pfJetConstituent->particleId() ) continue;
-          if ( !(pfCandPtr->energy() > 0.99*pfJetConstituent->energy() && pfCandPtr->energy() < 1.01*pfJetConstituent->energy()) ) continue;
+          if ( pfCandPtr->particleId() != pfJetConstituentPtr->particleId() ) continue;
+          if ( !(pfCandPtr->energy() > 0.99*pfJetConstituentPtr->energy() && pfCandPtr->energy() < 1.01*pfJetConstituentPtr->energy()) ) continue;
           isPFJetConstituent = true;
           break;
         }
@@ -601,11 +643,11 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
       }
       for ( size_t idxPFJetConstituent = 0; idxPFJetConstituent < std::min(selPFJetConstituents.size(), num_nnOutputs_); ++idxPFJetConstituent )
       {
-        const reco::PFCandidate& pfJetConstituent = selPFJetConstituents.at(idxPFJetConstituent);
+        const reco::PFCandidatePtr& pfJetConstituentPtr = selPFJetConstituents.at(idxPFJetConstituent);
         std::vector<float> nnInputs_pfCand;
         for ( auto const& inputVariable : pfCandInputs_ )
         {
-          nnInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+          nnInputs_pfCand.push_back(compPFCandInput(*pfJetConstituentPtr, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
         }
         std::vector<float> gnnPointInputs_pfCand;
         std::vector<float> gnnMaskInputs_pfCand;
@@ -613,15 +655,15 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
         {
           for ( auto const& inputVariable : pointInputs_ )
           {
-            gnnPointInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+            gnnPointInputs_pfCand.push_back(compPFCandInput(*pfJetConstituentPtr, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
           }
           for ( auto const& inputVariable : maskInputs_ )
           {
-            gnnMaskInputs_pfCand.push_back(compPFCandInput(pfJetConstituent, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
+            gnnMaskInputs_pfCand.push_back(compPFCandInput(*pfJetConstituentPtr, inputVariable, primaryVertexRef->position(), *pfJetRef, leadTrack, pfCandSumP4));
           }
         }
         float nnOutput = nnOutputs_[0].flat<float>()(idxPFJetConstituent);
-        std::string key_pfCand = getHash_pfCand(pfJetConstituent.p4(), pfJetConstituent.particleId(), pfJetConstituent.charge());
+        std::string key_pfCand = getHash_pfCand(pfJetConstituentPtr->p4(), pfJetConstituentPtr->particleId(), pfJetConstituentPtr->charge());
         if ( idxPFJetConstituent != 0 )
         {
           (*jsonFile_) << "," << std::endl;
