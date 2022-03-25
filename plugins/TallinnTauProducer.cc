@@ -724,6 +724,7 @@ TallinnTauProducer::fillDescriptions(edm::ConfigurationDescriptions& description
   desc.add<edm::ParameterSetDescription>("tfGraph", desc_tfGraph);
   desc.add<double>("signalMinPFEnFrac", 0.);
   desc.add<double>("isolationMinPFEnFrac", 0.);
+  desc.add<std::string>("mode", "regression");
   desc.add<double>("isolationConeSize", 0.5);
   edm::ParameterSetDescription desc_qualityCuts;
   RecoTauQualityCuts::fillDescriptions(desc_qualityCuts);
