@@ -47,3 +47,6 @@ tallinnTaus = cms.EDProducer("TallinnTauProducer",
     jsonFileName = cms.string("TallinnTauProducer.json"),
     verbosity = cms.int32(0)
 )
+tallinnTaus.qualityCuts.isolationQualityCuts.minTrackHits = cms.uint32(3)
+tallinnTaus.qualityCuts.isolationQualityCuts.minGammaEt = cms.double(1.0)
+tallinnTaus.qualityCuts.isolationQualityCuts.minTrackPt = cms.double(0.5)
