@@ -6,6 +6,8 @@ from RecoTauTag.RecoTau.PFRecoTauDiscriminationByLeadingObjectPtCut_cfi import *
 from RecoTauTag.RecoTau.PFRecoTauDiscriminationByIsolation_cfi import *
 from TallinnTauTag.RecoTau.TallinnTauProducerDNN_cfi import *
 #from TallinnTauTag.RecoTau.TallinnTauProducerGNN_cfi import *
+import RecoTauTag.RecoTau.pfTauPrimaryVertexProducer_cfi as _mod
+from RecoTauTag.RecoTau.PFRecoTauQualityCuts_cfi import PFTauQualityCuts
 
 tallinnTauDiscriminationByDecayModeFindingNewDMs = hpsSelectionDiscriminator.clone(
     PFTauProducer = 'tallinnTaus',
@@ -43,7 +45,8 @@ tallinnTau_requireLeadTrack = cms.PSet(
 
 tallinnTauDiscriminationByLeadingTrackPtCut = pfRecoTauDiscriminationByLeadingObjectPtCut.clone(
     PFTauProducer = 'tallinnTaus',
-    Prediscriminants = tallinnTau_requireLeadTrack.clone(),
+    Prediscriminants = cms.PSet( BooleanOperator = cms.string("and") ),
+    #Prediscriminants = tallinnTau_requireLeadTrack.clone(),
     UseOnlyChargedHadrons = True, 
     MinPtLeadingObject = cms.double(5.0)
 )
@@ -141,10 +144,46 @@ tallinnTauBasicDiscriminators = pfRecoTauDiscriminationByIsolation.clone(
     )
 )
 
-tallinnTauSequence = cms.Sequence(
-  tallinnTaus
- + tallinnTauDiscriminationByDecayModeFindingNewDMs
- + tallinnTauDiscriminationByLeadingTrackFinding
- + tallinnTauDiscriminationByLeadingTrackPtCut
- + tallinnTauBasicDiscriminators
+tallinnTauPrimaryVertexProducer = _mod.pfTauPrimaryVertexProducer.clone(
+    #Algorithm: 0 - use tau-jet vertex, 1 - use vertex[0]
+    qualityCuts = PFTauQualityCuts,
+    discriminators = cms.VPSet(
+        cms.PSet(
+            discriminator = cms.InputTag('tallinnTauuDiscriminationByDecayModeFindingNewDMs'),
+            selectionCut = cms.double(0.5)
+        )
+    ),
+    PFTauTag = cms.InputTag('tallinnTaus')
 )
+
+tallinnTauSecondaryVertexProducer = cms.EDProducer('PFTauSecondaryVertexProducer',
+  PFTauTag = cms.InputTag('tallinnTaus'),
+  mightGet = cms.optional.untracked.vstring
+)
+tallinnTauTransverseImpactParameters = cms.EDProducer('PFTauTransverseImpactParameters',
+  PFTauPVATag = cms.InputTag('tallinnTauPrimaryVertexProducer'),
+  useFullCalculation = cms.bool(False),
+  PFTauTag = cms.InputTag('tallinnTaus'),
+  PFTauSVATag = cms.InputTag('tallinnTauSecondaryVertexProducer'),
+  mightGet = cms.optional.untracked.vstring
+)
+
+if tallinnTaus.mode == cms.string("regression"):
+    tallinnTauSequence = cms.Sequence(
+        tallinnTaus
+        + tallinnTauDiscriminationByDecayModeFindingNewDMs
+        + tallinnTauDiscriminationByLeadingTrackFinding
+        + tallinnTauDiscriminationByLeadingTrackPtCut
+        + tallinnTauBasicDiscriminators
+    )
+elif tallinnTaus.mode == cms.string("classification"):
+        tallinnTauSequence = cms.Sequence(
+        tallinnTaus
+        + tallinnTauDiscriminationByDecayModeFindingNewDMs
+        + tallinnTauDiscriminationByLeadingTrackFinding
+        + tallinnTauDiscriminationByLeadingTrackPtCut
+        + tallinnTauBasicDiscriminators
+        + tallinnTauPrimaryVertexProducer
+        + tallinnTauSecondaryVertexProducer
+        + tallinnTauTransverseImpactParameters
+    )

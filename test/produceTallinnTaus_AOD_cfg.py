@@ -88,7 +88,8 @@ hpsPFTau_requireLeadTrack = cms.PSet(
 from RecoTauTag.RecoTau.PFRecoTauDiscriminationByLeadingObjectPtCut_cfi import pfRecoTauDiscriminationByLeadingObjectPtCut
 process.hpsPFTauDiscriminationByLeadingTrackPtCut = pfRecoTauDiscriminationByLeadingObjectPtCut.clone(
     PFTauProducer = 'hpsPFTauProducer',
-    Prediscriminants = hpsPFTau_requireLeadTrack.clone(),
+    #Prediscriminants = hpsPFTau_requireLeadTrack.clone(),
+    Prediscriminants = cms.PSet( BooleanOperator = cms.string("and") ),
     UseOnlyChargedHadrons = True, 
     MinPtLeadingObject = cms.double(5.0)
 )
