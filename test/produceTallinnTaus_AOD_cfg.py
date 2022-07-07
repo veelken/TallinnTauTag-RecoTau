@@ -52,7 +52,8 @@ def getInputFileNames(inputFilePath):
         else:
             # check if name of inputFile matches regular expression
             if inputFile_matcher.match(file):
-                inputFileNames.append("file:%s" % os.path.join(inputFilePath, file))
+                if not("inMINIAODSIM" in file):
+                    inputFileNames.append("file:%s" % os.path.join(inputFilePath, file))
     return inputFileNames
 
 print("Searching for input files in path = '%s'" % inputFilePath)

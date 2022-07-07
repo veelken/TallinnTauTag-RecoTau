@@ -149,7 +149,7 @@ tallinnTauPrimaryVertexProducer = _mod.pfTauPrimaryVertexProducer.clone(
     qualityCuts = PFTauQualityCuts,
     discriminators = cms.VPSet(
         cms.PSet(
-            discriminator = cms.InputTag('tallinnTauuDiscriminationByDecayModeFindingNewDMs'),
+            discriminator = cms.InputTag('tallinnTauDiscriminationByDecayModeFindingNewDMs'),
             selectionCut = cms.double(0.5)
         )
     ),
