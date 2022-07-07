@@ -45,8 +45,8 @@ tallinnTau_requireLeadTrack = cms.PSet(
 
 tallinnTauDiscriminationByLeadingTrackPtCut = pfRecoTauDiscriminationByLeadingObjectPtCut.clone(
     PFTauProducer = 'tallinnTaus',
-    Prediscriminants = cms.PSet( BooleanOperator = cms.string("and") ),
-    #Prediscriminants = tallinnTau_requireLeadTrack.clone(),
+    #Prediscriminants = cms.PSet( BooleanOperator = cms.string("and") ), # use when fix in RecoTauTag/RecoTau/plugins/PFRecoTauDiscriminationByLeadingObjectPtCut.cc not available
+    Prediscriminants = tallinnTau_requireLeadTrack.clone(), # else...
     UseOnlyChargedHadrons = True, 
     MinPtLeadingObject = cms.double(5.0)
 )
