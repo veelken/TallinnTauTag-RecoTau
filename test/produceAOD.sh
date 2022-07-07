@@ -17,7 +17,7 @@ sed "$sed_command" produceTallinnTaus_AOD_cfg.py >& $configFile
 logFile=produceTallinnTaus_ggH_htt_"$mode"_AOD.log
 rm $logFile
 cmsRun $configFile >& $logFile
-outputFile=produceTallinnTaus_ggH_htt_DNN_"$version"_AODSIM.root
+outputFile=produceTallinnTaus_ggH_htt_"$mode"_"$version"_AODSIM.root
 echo "produceAOD.sh: outputFile for process 'ggH_htt' = '$outputFile'"
 mv produceTallinnTaus_AODSIM.root $outputFile
 
@@ -29,7 +29,7 @@ sed "$sed_command" produceTallinnTaus_AOD_cfg.py >& $configFile
 logFile=produceTallinnTaus_qcd_"$mode"_AOD.log
 rm $logFile
 cmsRun $configFile >& $logFile
-outputFile=produceTallinnTaus_qcd_DNN_"$version"_AODSIM.root
+outputFile=produceTallinnTaus_qcd_"$mode"_"$version"_AODSIM.root
 echo "produceAOD.sh: outputFile for process 'qcd' = '$outputFile'"
 mv produceTallinnTaus_AODSIM.root $outputFile
 
