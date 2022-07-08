@@ -9,6 +9,19 @@ from TallinnTauTag.RecoTau.TallinnTauProducerDNN_cfi import *
 import RecoTauTag.RecoTau.pfTauPrimaryVertexProducer_cfi as _mod
 from RecoTauTag.RecoTau.PFRecoTauQualityCuts_cfi import PFTauQualityCuts
 
+
+tallinnTauDiscriminationByDecayModeFindingOldDMs = hpsSelectionDiscriminator.clone(
+    PFTauProducer = 'tallinnTaus',
+    decayModes = cms.VPSet(
+        decayMode_1Prong0Pi0,
+        decayMode_1Prong1Pi0,
+        decayMode_1Prong2Pi0,
+        decayMode_3Prong0Pi0
+    ),
+    requireTauChargedHadronsToBeChargedPFCands = True
+)
+tallinnTauDiscriminationByDecayModeFinding = tallinnTauDiscriminationByDecayModeFindingOldDMs.clone()
+
 tallinnTauDiscriminationByDecayModeFindingNewDMs = hpsSelectionDiscriminator.clone(
     PFTauProducer = 'tallinnTaus',
     decayModes = cms.VPSet(
@@ -144,6 +157,12 @@ tallinnTauBasicDiscriminators = pfRecoTauDiscriminationByIsolation.clone(
     )
 )
 
+
+tallinnTauBasicDiscriminatorsdR03 = tallinnTauBasicDiscriminators.clone(
+     deltaBetaFactor = '0.0720', # 0.2*(0.3/0.5)^2
+     customOuterCone = 0.3
+)
+
 tallinnTauPrimaryVertexProducer = _mod.pfTauPrimaryVertexProducer.clone(
     #Algorithm: 0 - use tau-jet vertex, 1 - use vertex[0]
     qualityCuts = PFTauQualityCuts,
@@ -171,6 +190,8 @@ tallinnTauTransverseImpactParameters = cms.EDProducer('PFTauTransverseImpactPara
 if tallinnTaus.mode == cms.string("regression"):
     tallinnTauSequence = cms.Sequence(
         tallinnTaus
+        + tallinnTauDiscriminationByDecayModeFindingOldDMs
+        + tallinnTauDiscriminationByDecayModeFinding
         + tallinnTauDiscriminationByDecayModeFindingNewDMs
         + tallinnTauDiscriminationByLeadingTrackFinding
         + tallinnTauDiscriminationByLeadingTrackPtCut
@@ -179,6 +200,7 @@ if tallinnTaus.mode == cms.string("regression"):
 elif tallinnTaus.mode == cms.string("classification"):
         tallinnTauSequence = cms.Sequence(
         tallinnTaus
+        + tallinnTauDiscriminationByDecayModeFinding
         + tallinnTauDiscriminationByDecayModeFindingNewDMs
         + tallinnTauDiscriminationByLeadingTrackFinding
         + tallinnTauDiscriminationByLeadingTrackPtCut

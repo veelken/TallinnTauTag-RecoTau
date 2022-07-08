@@ -690,9 +690,10 @@ TallinnTauProducer::produce(edm::Event& evt, const edm::EventSetup& es)
                 << " eta = " << pfTau.eta() << ","
                 << " phi = " << pfTau.phi() << ","
                 << " mass = " << pfTau.mass() << ","
-                << " decayMode = " << pfTau.decayMode() << std::endl;
+                << " decayMode = " << pfTau.decayMode() << ","
+                << "n signal pfcand = " << pfTau.signalPFCands().size() << std::endl;
     }
-    pfTaus->push_back(pfTau);
+    if (pfTau.pt()>10 && pfTau.signalPFCands().size()>0) pfTaus->push_back(pfTau); // only take taus with at least one pf candidate and a minimum pt
   }
 
   evt.put(std::move(pfTaus));
