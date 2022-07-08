@@ -152,7 +152,9 @@ elif mode == "gnn":
     process.tallinnTaus = tallinnTausGNN
 else:
     raise ValueError("Invalid configuration parameter 'mode' = '%s'!!" % mode) 
+#process.tallinnTaus.mode = cms.string('regression')
 process.productionSequence += process.tallinnTauSequence
+
 #--------------------------------------------------------------------------------
 
 process.p = cms.Path(process.productionSequence)

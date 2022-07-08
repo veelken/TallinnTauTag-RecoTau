@@ -5,7 +5,7 @@ from PhysicsTools.PatAlgos.tools.helpers import cloneProcessingSnippet
 from PhysicsTools.PatAlgos.tools.helpers import massSearchReplaceAnyInputTag
 from PhysicsTools.PatAlgos.slimming.slimmedTaus_cfi import slimmedTaus
 
-def customizeTallinnTausMiniAOD(process):
+def customizeTallinnTausMiniAOD(process, tallinTauBmode=None):
     process.PATTauSequence = cms.Sequence(process.makePatTaus + process.selectedPatTaus)
     process.PATTauSequenceHPS = cloneProcessingSnippet(process, process.PATTauSequence, "HPS", addToTask = True)
     process.selectedPatTausHPS.cut = cms.string("")
@@ -67,7 +67,8 @@ def customizeTallinnTausMiniAOD(process):
                                  linkToLostTracks = cms.bool(True),
                                  lostTracks = cms.InputTag("lostTracks")
                              )
-    process.patTask.add(process.slimmedTallinnTaus)
+    if tallinTauBmode == "classification":
+        process.patTask.add(process.slimmedTallinnTaus)
 
     #----------------------------------------------------------------------------
     # CV: add collection 'rekeyLowPtGsfElectronSeedValueMaps' to avoid exception in PATElectronProducer

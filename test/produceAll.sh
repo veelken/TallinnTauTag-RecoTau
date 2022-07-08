@@ -1,10 +1,12 @@
 #!/usr/bin/sh
 
-#mode="dnn"
-mode="gnn"
+mode="dnn"
+#mode="gnn"
 
-version="2022Mar20"
+version="2022Jul6"
 
-source produceAOD.sh $mode $version
-source produceMiniAOD.sh $mode $version
+cmode="classification"
+
+source produceAOD.sh $mode $version $cmode
+source produceMiniAOD.sh $mode $version $cmode
 source produceNanoAOD.sh $mode $version
