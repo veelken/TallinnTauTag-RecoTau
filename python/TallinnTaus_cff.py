@@ -163,6 +163,17 @@ tallinnTauBasicDiscriminatorsdR03 = tallinnTauBasicDiscriminators.clone(
      customOuterCone = 0.3
 )
 
+del tallinnTauBasicDiscriminatorsdR03.IDWPdefinitions[-1] # ByPhotonPtSumOutsideSignalCone not defined for dR03
+del tallinnTauBasicDiscriminatorsdR03.IDWPdefinitions[-1] # ByLooseChargedIsolation not defined for dR03
+for pset in tallinnTauBasicDiscriminatorsdR03.IDdefinitions:
+    pset.IDname = pset.IDname.value() + "dR03"
+for pset in tallinnTauBasicDiscriminatorsdR03.IDWPdefinitions:
+    pset.IDname = pset.IDname.value() + "dR03"
+    pset.referenceRawIDNames = [name + "dR03" for name in pset.referenceRawIDNames.value()]
+tallinnTauBasicDiscriminatorsdR03Task = cms.Task(
+    tallinnTauBasicDiscriminatorsdR03
+)
+
 tallinnTauPrimaryVertexProducer = _mod.pfTauPrimaryVertexProducer.clone(
     #Algorithm: 0 - use tau-jet vertex, 1 - use vertex[0]
     qualityCuts = PFTauQualityCuts,
@@ -196,6 +207,7 @@ if tallinnTaus.mode == cms.string("regression"):
         + tallinnTauDiscriminationByLeadingTrackFinding
         + tallinnTauDiscriminationByLeadingTrackPtCut
         + tallinnTauBasicDiscriminators
+        + tallinnTauBasicDiscriminatorsdR03
     )
 elif tallinnTaus.mode == cms.string("classification"):
         tallinnTauSequence = cms.Sequence(
@@ -205,6 +217,7 @@ elif tallinnTaus.mode == cms.string("classification"):
         + tallinnTauDiscriminationByLeadingTrackFinding
         + tallinnTauDiscriminationByLeadingTrackPtCut
         + tallinnTauBasicDiscriminators
+        + tallinnTauBasicDiscriminatorsdR03
         + tallinnTauPrimaryVertexProducer
         + tallinnTauSecondaryVertexProducer
         + tallinnTauTransverseImpactParameters

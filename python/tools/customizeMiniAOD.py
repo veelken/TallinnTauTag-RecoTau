@@ -27,7 +27,6 @@ def customizeTallinnTausMiniAOD(process, tallinTauBmode=None):
     singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByDecayModeFindingNewDMs', "decayModeFindingNewDMs")
     singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByLeadingTrackFinding', "leadingTrackFinding")
     singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByLeadingTrackPtCut', "leadingTrackPtCut")
-    
     containerID(process.patTausTallinn.tauIDSources, 'tallinnTauBasicDiscriminators', "IDdefinitions", [
         [ 'chargedIsoPtSum', "ChargedIsoPtSum" ],
         [ 'neutralIsoPtSum', "NeutralIsoPtSum" ],
@@ -46,7 +45,7 @@ def customizeTallinnTausMiniAOD(process, tallinTauBmode=None):
         [ 'byTightChargedIsolation', "ByTightChargedIsolation" ],
         [ 'byPhotonPtSumOutsideSignalCone', "ByPhotonPtSumOutsideSignalCone" ]
     ])
-    containerID(process.patTausTallinn.tauIDSources, "hpsPFTauBasicDiscriminatorsdR03", "IDdefinitions", [
+    containerID(process.patTausTallinn.tauIDSources, "tallinnTauBasicDiscriminatorsdR03", "IDdefinitions", [
      ["chargedIsoPtSumdR03", "ChargedIsoPtSumdR03"],
      ["neutralIsoPtSumdR03", "NeutralIsoPtSumdR03"],
      ["neutralIsoPtSumWeightdR03", "NeutralIsoPtSumWeightdR03"],
