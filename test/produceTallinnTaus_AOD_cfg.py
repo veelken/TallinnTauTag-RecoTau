@@ -12,7 +12,7 @@ process.load('Configuration.StandardSequences.Reconstruction_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(50000)
+    input = cms.untracked.int32(-1)
     ##input = cms.untracked.int32(10)
 )
 
@@ -52,7 +52,8 @@ def getInputFileNames(inputFilePath):
         else:
             # check if name of inputFile matches regular expression
             if inputFile_matcher.match(file):
-                inputFileNames.append("file:%s" % os.path.join(inputFilePath, file))
+                if not("inMINIAODSIM" in file):
+                    inputFileNames.append("file:%s" % os.path.join(inputFilePath, file))
     return inputFileNames
 
 print("Searching for input files in path = '%s'" % inputFilePath)
@@ -88,7 +89,8 @@ hpsPFTau_requireLeadTrack = cms.PSet(
 from RecoTauTag.RecoTau.PFRecoTauDiscriminationByLeadingObjectPtCut_cfi import pfRecoTauDiscriminationByLeadingObjectPtCut
 process.hpsPFTauDiscriminationByLeadingTrackPtCut = pfRecoTauDiscriminationByLeadingObjectPtCut.clone(
     PFTauProducer = 'hpsPFTauProducer',
-    Prediscriminants = hpsPFTau_requireLeadTrack.clone(),
+    #Prediscriminants = cms.PSet( BooleanOperator = cms.string("and") ), # use when fix in RecoTauTag/RecoTau/plugins/PFRecoTauDiscriminationByLeadingObjectPtCut.cc not available
+    Prediscriminants = hpsPFTau_requireLeadTrack.clone(), # else...
     UseOnlyChargedHadrons = True, 
     MinPtLeadingObject = cms.double(5.0)
 )
@@ -150,7 +152,9 @@ elif mode == "gnn":
     process.tallinnTaus = tallinnTausGNN
 else:
     raise ValueError("Invalid configuration parameter 'mode' = '%s'!!" % mode) 
+#process.tallinnTaus.mode = cms.string('regression')
 process.productionSequence += process.tallinnTauSequence
+
 #--------------------------------------------------------------------------------
 
 process.p = cms.Path(process.productionSequence)

@@ -5,7 +5,7 @@ from PhysicsTools.PatAlgos.tools.helpers import cloneProcessingSnippet
 from PhysicsTools.PatAlgos.tools.helpers import massSearchReplaceAnyInputTag
 from PhysicsTools.PatAlgos.slimming.slimmedTaus_cfi import slimmedTaus
 
-def customizeTallinnTausMiniAOD(process):
+def customizeTallinnTausMiniAOD(process, tallinTauBmode=None):
     process.PATTauSequence = cms.Sequence(process.makePatTaus + process.selectedPatTaus)
     process.PATTauSequenceHPS = cloneProcessingSnippet(process, process.PATTauSequence, "HPS", addToTask = True)
     process.selectedPatTausHPS.cut = cms.string("")
@@ -23,6 +23,7 @@ def customizeTallinnTausMiniAOD(process):
     process.PATTauSequenceTallinn = cloneProcessingSnippet(process, process.PATTauSequence, "Tallinn", addToTask = True)
     massSearchReplaceAnyInputTag(process.PATTauSequenceTallinn, 'hpsPFTauProducer', 'tallinnTaus')
     process.patTausTallinn.tauIDSources = cms.PSet()
+    singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByDecayModeFinding', "decayModeFinding")
     singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByDecayModeFindingNewDMs', "decayModeFindingNewDMs")
     singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByLeadingTrackFinding', "leadingTrackFinding")
     singleID(process.patTausTallinn.tauIDSources, 'tallinnTauDiscriminationByLeadingTrackPtCut', "leadingTrackPtCut")
@@ -44,8 +45,30 @@ def customizeTallinnTausMiniAOD(process):
         [ 'byTightChargedIsolation', "ByTightChargedIsolation" ],
         [ 'byPhotonPtSumOutsideSignalCone', "ByPhotonPtSumOutsideSignalCone" ]
     ])
-    process.patTausTallinn.tauTransverseImpactParameterSource = cms.InputTag("")
+    containerID(process.patTausTallinn.tauIDSources, "tallinnTauBasicDiscriminatorsdR03", "IDdefinitions", [
+     ["chargedIsoPtSumdR03", "ChargedIsoPtSumdR03"],
+     ["neutralIsoPtSumdR03", "NeutralIsoPtSumdR03"],
+     ["neutralIsoPtSumWeightdR03", "NeutralIsoPtSumWeightdR03"],
+     ["footprintCorrectiondR03", "TauFootprintCorrectiondR03"],
+     ["photonPtSumOutsideSignalConedR03", "PhotonPtSumOutsideSignalConedR03"]
+    ])
+    process.patTausTallinn.tauTransverseImpactParameterSource = cms.InputTag("tallinnTauTransverseImpactParameters")
     process.selectedPatTausTallinn.cut = cms.string("")
+    process.slimmedTallinnTaus = cms.EDProducer("PATTauSlimmer",
+                                 src = cms.InputTag("selectedPatTausTallinn"),
+                                 linkToPackedPFCandidates = cms.bool(True),
+                                 dropPiZeroRefs = cms.bool(True),
+                                 dropTauChargedHadronRefs = cms.bool(True),
+                                 dropPFSpecific = cms.bool(True),
+                                 packedPFCandidates = cms.InputTag("packedPFCandidates"),
+                                 modifyTaus = cms.bool(True),
+                                 modifierConfig = cms.PSet( modifications = cms.VPSet() ),
+                                 linkToLostTracks = cms.bool(True),
+                                 lostTracks = cms.InputTag("lostTracks")
+                             )
+    if tallinTauBmode == "classification":
+        process.patTask.add(process.slimmedTallinnTaus)
+
     #----------------------------------------------------------------------------
     # CV: add collection 'rekeyLowPtGsfElectronSeedValueMaps' to avoid exception in PATElectronProducer
     process.load("RecoEgamma.EgammaElectronProducers.lowPtGsfElectronSeedValueMaps_cff")
@@ -56,6 +79,7 @@ def customizeTallinnTausMiniAOD(process):
     myOutputCommands.append("keep *_patTausHPS_*_*")
     myOutputCommands.append("keep *_patTausTallinn_*_*")
     myOutputCommands.append("keep *_tallinnTaus_*_*")
+    myOutputCommands.append("keep *_slimmed*_*_*")
     myOutputCommands.append("keep *_particleFlow_*_*")
     myOutputCommands.append("keep *_ak4PFJets_*_*")
     myOutputCommands.append("keep *_gtStage2Digis_*_*")
