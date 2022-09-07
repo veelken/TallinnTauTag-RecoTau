@@ -116,6 +116,13 @@ namespace
     }
     return tauChargedHadrons;
   }
+
+  int sign(double x)
+  {
+    if (x > 0) return +1;
+    if (x < 0) return -1;
+    return 0;
+  }
 } // namespace
 
 reco::PFTau
@@ -134,10 +141,17 @@ TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
   pfTau.setsignalPiZeroCandidates(piZeros);
   double numTracks_float = 0;
   double charge_float = 0.;
+  double chargeNorm = 0.;
   for ( auto const& signalPFCand : signalPFCands )
   {
     if ( signalPFCand.charge() != 0. ) numTracks_float += signalPFCand.enFrac();
-    charge_float += signalPFCand.enFrac()*signalPFCand.charge();
+    double chargeWeight = signalPFCand.pt()*signalPFCand.enFrac();
+    charge_float += chargeWeight*signalPFCand.charge();
+    chargeNorm += chargeWeight;
+  }
+  if ( chargeNorm > 0. )
+  {
+    charge_float /= chargeNorm;
   }
   int numTracks = round(numTracks_float);
   reco::PFTau::hadronicDecayMode decayMode = reco::PFTau::kNull;
@@ -149,7 +163,7 @@ TallinnTauBuilder::operator()(const reco::PFJetRef& jetRef,
   else if ( numTracks == 3 && piZeros.size() >= 1 ) decayMode = reco::PFTau::kThreeProng1PiZero;
   else                                              decayMode = reco::PFTau::kRareDecayMode;
   pfTau.setDecayMode(decayMode);
-  int charge = round(charge_float);
+  int charge = sign(charge_float);
   pfTau.setCharge(charge);
   int pdgId = ( charge_float >= 0. ) ? -15 : +15; 
   pfTau.setPdgId(pdgId);
